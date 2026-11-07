@@ -31,15 +31,11 @@
         android:label="Device Manager"
         android:theme="@android:style/Theme.Material.NoActionBar">
 
+        <!-- REMOVED INTENT FILTER FROM MAIN ACTIVITY -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@android:style/Theme.Material.NoActionBar">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:theme="@android:style/Theme.Material.NoActionBar" />
 
         <activity-alias
             android:name=".MainActivityLauncher"
