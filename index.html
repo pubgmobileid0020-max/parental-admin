@@ -100,7 +100,7 @@
         <button class="act" id="btn-audio" onclick="toggleAudio()">Start Audio</button>
       </div>
       <div class="screen-container" id="screen-container">
-        <canvas id="screen" width="1080" height="1920"></canvas>
+        <canvas id="screen" width="480" height="800"></canvas>
       </div>
       <div style="font-size:11px;color:var(--dim);margin-top:8px; text-align:center;" id="frameCount">0 frames</div>
     </div>
@@ -175,7 +175,7 @@ window.onerror = function(msg) {
 const $ = id => document.getElementById(id);
 let ws = null;
 let currentDevice = "";
-let realScreenW = 1080, realScreenH = 1920;
+let realScreenW = 480, realScreenH = 800;
 
 function switchTab(tabId, btn) {
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
@@ -245,10 +245,19 @@ function handlePush(msg) {
   if (msg.type === 'device_list') {
     const sel = $('device-select');
     sel.innerHTML = '<option value="">Select Device</option>';
-    msg.devices.forEach(d => addDeviceOption(d.id, d.name));
-    if (msg.devices.length > 0 && !currentDevice) { sel.value = msg.devices[0].id; onDeviceChange(); }
+    
+    // Handle both old (string) and new (object) server formats
+    msg.devices.forEach(d => {
+        if (typeof d === 'string') addDeviceOption(d, 'Device');
+        else addDeviceOption(d.id, d.name);
+    });
+    
+    if (msg.devices.length > 0 && !currentDevice) {
+        let firstId = typeof msg.devices[0] === 'string' ? msg.devices[0] : msg.devices[0].id;
+        sel.value = firstId; onDeviceChange();
+    }
   } else if (msg.type === 'device_online') {
-    addDeviceOption(msg.device_id, msg.device_name);
+    addDeviceOption(msg.device_id, msg.device_name || 'Device');
   } else if (msg.type === 'device_offline') {
     const sel = $('device-select');
     const opt = [...sel.options].find(o => o.value === msg.device_id);
@@ -266,12 +275,13 @@ function handlePush(msg) {
 }
 
 function addDeviceOption(id, name) {
+  if (!id) return;
   const sel = $('device-select');
   if ([...sel.options].some(o => o.value === id)) return;
   const opt = document.createElement('option');
   opt.value = id; 
-  // Display Name (ID) in the dropdown
-  opt.textContent = `${name} (${id.substring(0, 6)}...)`;
+  const shortId = typeof id === 'string' ? id.substring(0, 6) : 'unknown';
+  opt.textContent = `${name} (${shortId}...)`;
   sel.appendChild(opt);
   if (!currentDevice) { sel.value = id; onDeviceChange(); }
 }
