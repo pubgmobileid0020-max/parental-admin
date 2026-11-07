@@ -18,7 +18,6 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.CallLog
-import android.provider.Telephony
 import android.util.Base64
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
@@ -204,8 +203,9 @@ object CommandHandler {
         val handler = Handler(ht.looper)
         val latch = CountDownLatch(1)
         val result = JSONObject()
-        @Volatile var session: CameraCaptureSession? = null
-        @Volatile var device: CameraDevice? = null
+        
+        var session: CameraCaptureSession? = null
+        var device: CameraDevice? = null
 
         reader.setOnImageAvailableListener({ r ->
             val img = r.acquireLatestImage()
@@ -283,7 +283,7 @@ object CommandHandler {
     }
 
     private fun startScreen(ctx: Context): JSONObject {
-        return fail("screen capture must be granted from the app: open Device Manager → Grant screen capture")
+        return fail("screen capture must be granted from the app: open Device Manager -> Grant screen capture")
     }
 
     private fun stopScreen(ctx: Context): JSONObject {
