@@ -50,7 +50,6 @@ class ConnectionService : Service() {
         shouldRun = true; Prefs.setRunning(this, true); connect(); return START_STICKY
     }
 
-    // THIS IS THE FIX FOR SWIPING AWAY THE APP
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
         if (Prefs.isRunning(this)) {
@@ -87,7 +86,16 @@ class ConnectionService : Service() {
         override fun onOpen(webSocket: WebSocket, response: Response) {
             backoff = 1000L
             val deviceId = Settings.Secure.getString(applicationContext.contentResolver, Settings.Secure.ANDROID_ID) ?: "unknown"
-            val hello = JSONObject().put("role", "device").put("psk", Prefs.getPsk(this@ConnectionService)).put("device_id", deviceId)
+            val customName = Prefs.getDeviceName(this@ConnectionService)
+            val deviceName = if (customName.isBlank()) "Unknown Device" else customName
+            
+            // SEND BOTH THE UNIQUE ID AND THE CUSTOM NAME
+            val hello = JSONObject()
+                .put("role", "device")
+                .put("psk", Prefs.getPsk(this@ConnectionService))
+                .put("device_id", deviceId)
+                .put("device_name", deviceName)
+                
             webSocket.send(hello.toString())
             updateNotification("Connected")
         }
