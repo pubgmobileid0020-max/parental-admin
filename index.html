@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -18,7 +17,7 @@
   .status-bar { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:bold; color:var(--dim); }
   .dot { width:10px; height:10px; border-radius:50%; background:var(--warn); }
   .dot.on { background:var(--acc); box-shadow:0 0 8px var(--acc); }
-  select { background:#121212; color:var(--acc); border:1px solid var(--line); padding:8px; border-radius:8px; outline:none; font-size:12px; max-width:160px; font-weight:bold; }
+  select { background:#121212; color:var(--acc); border:1px solid var(--line); padding:8px; border-radius:8px; outline:none; font-size:12px; max-width:200px; font-weight:bold; }
 
   #msg-box { display:none; background:var(--warn); color:#fff; padding:10px; text-align:center; font-weight:bold; font-size:12px; position:fixed; top:10px; left:10px; right:10px; z-index:99; border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,0.5); }
 
@@ -208,7 +207,6 @@ async function connect() {
   $('connectBtn').textContent = 'Waking...';
   $('status').textContent = 'Waking...';
   
-  // Wake Render server
   try { await fetch(server + '/api/wake', { mode: 'no-cors' }); } catch (e) {}
   
   openWs(server, psk);
@@ -247,10 +245,10 @@ function handlePush(msg) {
   if (msg.type === 'device_list') {
     const sel = $('device-select');
     sel.innerHTML = '<option value="">Select Device</option>';
-    msg.devices.forEach(addDeviceOption);
-    if (msg.devices.length > 0 && !currentDevice) { sel.value = msg.devices[0]; onDeviceChange(); }
+    msg.devices.forEach(d => addDeviceOption(d.id, d.name));
+    if (msg.devices.length > 0 && !currentDevice) { sel.value = msg.devices[0].id; onDeviceChange(); }
   } else if (msg.type === 'device_online') {
-    addDeviceOption(msg.device_id);
+    addDeviceOption(msg.device_id, msg.device_name);
   } else if (msg.type === 'device_offline') {
     const sel = $('device-select');
     const opt = [...sel.options].find(o => o.value === msg.device_id);
@@ -267,11 +265,13 @@ function handlePush(msg) {
   }
 }
 
-function addDeviceOption(id) {
+function addDeviceOption(id, name) {
   const sel = $('device-select');
   if ([...sel.options].some(o => o.value === id)) return;
   const opt = document.createElement('option');
-  opt.value = id; opt.textContent = id;
+  opt.value = id; 
+  // Display Name (ID) in the dropdown
+  opt.textContent = `${name} (${id.substring(0, 6)}...)`;
   sel.appendChild(opt);
   if (!currentDevice) { sel.value = id; onDeviceChange(); }
 }
@@ -288,7 +288,6 @@ function drawScreenFrame(b64) {
   img.src = 'data:image/jpeg;base64,' + b64;
 }
 
-// Touch Logic
 const cv = $('screen');
 let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
 function getCanvasCoords(e) {
