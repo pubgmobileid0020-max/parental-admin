@@ -8,46 +8,51 @@
   :root { --bg:#121212; --panel:#1E1E1E; --fg:#e0e0e0; --acc:#00E676; --warn:#FF5252; --dim:#888; --line:#333; }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size:14px; padding-bottom:20px; }
-  header { background:var(--panel); padding:12px; position:sticky; top:0; z-index:10; display:flex; flex-direction:column; gap:10px; border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-  .input-row { display:flex; gap:8px; }
-  .input-row input { flex:1; min-width:0; background:#121212; border:1px solid var(--line); color:var(--fg); padding:12px; border-radius:8px; font-size:14px; outline:none; }
-  .input-row button { background:var(--acc); color:#000; border:none; padding:12px 20px; border-radius:8px; font-weight:bold; font-size:14px; cursor:pointer;}
-  .status-row { display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:bold; }
-  .dot { width:10px; height:10px; border-radius:50%; background:var(--warn); display:inline-block; margin-right:6px; }
+  
+  /* Compact Header */
+  header { background:var(--panel); padding:12px; position:sticky; top:0; z-index:10; display:flex; flex-direction:column; gap:8px; border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+  .row { display:flex; align-items:center; gap:8px; }
+  .input-group { flex:1; display:flex; gap:8px; min-width:0; }
+  .input-group input { flex:1; min-width:0; background:#121212; border:1px solid var(--line); color:var(--fg); padding:10px; border-radius:8px; font-size:13px; outline:none; }
+  #connect { background:var(--acc); color:#000; border:none; padding:10px 16px; border-radius:8px; font-weight:bold; font-size:13px; cursor:pointer; white-space:nowrap; }
+  .status-bar { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:bold; color:var(--dim); }
+  .dot { width:10px; height:10px; border-radius:50%; background:var(--warn); }
   .dot.on { background:var(--acc); box-shadow:0 0 8px var(--acc); }
-  select { background:#121212; color:var(--acc); border:1px solid var(--line); padding:8px; border-radius:8px; outline:none; font-size:13px; max-width:160px; font-weight:bold; }
+  select { background:#121212; color:var(--acc); border:1px solid var(--line); padding:8px; border-radius:8px; outline:none; font-size:12px; max-width:160px; font-weight:bold; }
 
-  #msg-box { display:none; background:var(--warn); color:#fff; padding:12px; text-align:center; font-weight:bold; font-size:13px; position:fixed; top:20px; left:20px; right:20px; z-index:99; border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,0.5); }
+  /* Error Box */
+  #msg-box { display:none; background:var(--warn); color:#fff; padding:10px; text-align:center; font-weight:bold; font-size:12px; position:fixed; top:10px; left:10px; right:10px; z-index:99; border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,0.5); }
 
-  nav { display:flex; background:var(--bg); margin: 16px; gap: 8px; overflow-x:auto; }
-  nav button { flex:1; background:var(--panel); border:none; color:var(--dim); padding:12px 10px; font-size:12px; font-weight:bold; text-transform:uppercase; border-radius:12px; white-space:nowrap; cursor:pointer; transition: 0.2s; }
+  /* Scrolling Tabs */
+  nav { display:flex; background:var(--bg); padding: 12px 12px 0 12px; gap: 8px; overflow-x:auto; scrollbar-width:none; }
+  nav::-webkit-scrollbar { display:none; }
+  nav button { flex:0 0 auto; background:var(--panel); border:none; color:var(--dim); padding:10px 16px; font-size:12px; font-weight:bold; text-transform:uppercase; border-radius:10px; white-space:nowrap; cursor:pointer; transition:0.2s; }
   nav button.active { color:#000; background:var(--acc); }
 
-  main { padding:0 16px; }
+  main { padding:12px; }
   .tab { display:none; }
   .tab.active { display:block; animation: fadeIn 0.2s; }
   @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
 
-  .card { background:var(--panel); border-radius:16px; padding:16px; margin-bottom:16px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
-  .card h2 { margin:0 0 12px 0; font-size:14px; color:var(--acc); font-weight:bold; letter-spacing:0.5px; }
+  .card { background:var(--panel); border-radius:16px; padding:16px; margin-bottom:12px; }
+  .card h2 { margin:0 0 12px 0; font-size:13px; color:var(--acc); font-weight:bold; letter-spacing:0.5px; }
   .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   button.act { background:#2C2C2C; color:var(--fg); border:none; padding:14px; border-radius:12px; font-size:13px; font-weight:bold; text-align:center; cursor:pointer; transition:0.1s; }
   button.act:active { background:#444; transform:scale(0.96); }
   button.act.danger { color:#fff; background:var(--warn); }
   button.act.success { color:#000; background:var(--acc); }
 
-  .screen-container { position:relative; width:100%; background:#000; border-radius:12px; margin-top:12px; overflow:hidden; touch-action:none; border:1px solid var(--line); }
+  .screen-container { position:relative; width:100%; background:#000; border-radius:12px; margin-top:12px; overflow:hidden; touch-action:none; }
   canvas { width:100%; display:block; }
   .touch-ripple { position:absolute; width:30px; height:30px; border:2px solid var(--acc); border-radius:50%; transform:translate(-50%, -50%); pointer-events:none; animation:ripple 0.4s ease-out; }
   @keyframes ripple { from { opacity:1; transform:translate(-50%,-50%) scale(1); } to { opacity:0; transform:translate(-50%,-50%) scale(2); } }
 
   .kv { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line); font-size:13px; }
-  .kv:last-child { border-bottom:none; }
   .kv span { color:var(--dim); }
-  pre { background:#121212; padding:12px; border-radius:12px; overflow:auto; font-size:12px; color:#aaa; max-height:250px; margin-top:12px; border:1px solid var(--line); }
+  pre { background:#121212; padding:12px; border-radius:12px; overflow:auto; font-size:12px; color:#aaa; max-height:250px; margin-top:12px; }
 
   .file-list { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
-  .file-item { display:flex; justify-content:space-between; padding:14px; background:#2C2C2C; border-radius:12px; font-size:13px; cursor:pointer; transition:0.1s; }
+  .file-item { display:flex; justify-content:space-between; padding:14px; background:#2C2C2C; border-radius:12px; font-size:13px; cursor:pointer; }
   .file-item.folder { color:#64B5F6; font-weight:bold; }
   .file-item:active { background:#444; transform:scale(0.98); }
   .path-bar { display:flex; gap:8px; }
@@ -56,8 +61,7 @@
   #notif-log { display:flex; flex-direction:column; gap:8px; }
   .notif { background:#2C2C2C; padding:14px; border-radius:12px; font-size:13px; border-left:4px solid var(--acc); }
   .notif b { color:var(--acc); font-size:11px; display:block; margin-bottom:4px; text-transform:uppercase; }
-  
-  img#cam-img { width:100%; border-radius:12px; margin-top:12px; display:none; border:1px solid var(--line); }
+  img#cam-img { width:100%; border-radius:12px; margin-top:12px; display:none; }
 </style>
 </head>
 <body>
@@ -65,13 +69,21 @@
 <div id="msg-box"></div>
 
 <header>
-  <div class="input-row">
-    <input id="server" placeholder="https://your-app.onrender.com">
-    <input id="psk" type="password" placeholder="PSK">
+  <!-- ROW 1: Inputs -->
+  <div class="row">
+    <div class="input-group">
+      <input id="server" placeholder="Server URL">
+      <input id="psk" type="password" placeholder="PSK">
+    </div>
     <button id="connect">Connect</button>
   </div>
-  <div class="status-row">
-    <div><span id="led" class="dot"></span> <span id="status">Disconnected</span></div>
+  
+  <!-- ROW 2: Status & Device -->
+  <div class="row" style="justify-content:space-between;">
+    <div class="status-bar">
+      <div id="led" class="dot"></div>
+      <span id="status">Disconnected</span>
+    </div>
     <select id="device-select" onchange="onDeviceChange()"><option value="">No Device</option></select>
   </div>
 </header>
@@ -85,7 +97,6 @@
 </nav>
 
 <main>
-  <!-- LIVE TAB -->
   <div id="tab-live" class="tab active">
     <div class="card">
       <h2>Live Screen</h2>
@@ -100,7 +111,6 @@
     </div>
   </div>
 
-  <!-- DEVICE TAB -->
   <div id="tab-device" class="tab">
     <div class="card">
       <h2>Device Info</h2>
@@ -119,7 +129,6 @@
     </div>
   </div>
 
-  <!-- CAMERA TAB -->
   <div id="tab-camera" class="tab">
     <div class="card">
       <h2>Camera Control</h2>
@@ -132,7 +141,6 @@
     </div>
   </div>
 
-  <!-- FILES TAB -->
   <div id="tab-files" class="tab">
     <div class="card">
       <h2>File Manager</h2>
@@ -153,7 +161,6 @@
     </div>
   </div>
 
-  <!-- NOTIFS TAB -->
   <div id="tab-notifs" class="tab">
     <div class="card">
       <h2>Live Notifications</h2>
@@ -163,12 +170,11 @@
 </main>
 
 <script>
-// Error handler
 window.onerror = function(msg) {
   const box = document.getElementById('msg-box');
   box.textContent = "Error: " + msg;
   box.style.display = 'block';
-  setTimeout(() => { box.style.display = 'none'; }, 4000);
+  setTimeout(() => { box.style.display = 'none'; }, 5000);
 };
 
 const $ = id => document.getElementById(id);
@@ -221,7 +227,7 @@ async function connect() {
   sessionStorage.setItem('psk', psk);
   sessionStorage.setItem('server', server);
   
-  $('status').textContent = 'Waking server...';
+  $('status').textContent = 'Waking...';
   try { await fetch(server + '/', { mode: 'no-cors' }); } catch (e) {}
   
   openWs(server, psk);
@@ -237,7 +243,7 @@ function openWs(server, psk) {
     ws = new WebSocket(u.toString());
     ws.onopen = () => { 
       $('led').className = 'dot on'; 
-      $('status').textContent = 'Dashboard Connected'; 
+      $('status').textContent = 'Connected'; 
       ws.send(JSON.stringify({ role: 'dashboard', psk })); 
     };
     ws.onmessage = ev => { try { handlePush(JSON.parse(ev.data)); } catch (_) {} };
@@ -247,7 +253,7 @@ function openWs(server, psk) {
       const p = sessionStorage.getItem('psk'), s = sessionStorage.getItem('server');
       if (p && s) setTimeout(() => openWs(s, p), 3000);
     };
-    ws.onerror = () => { $('status').textContent = 'WS Error. Retrying...'; };
+    ws.onerror = () => { $('status').textContent = 'WS Error'; };
   } catch(e) { $('status').textContent = 'Invalid URL'; }
 }
 
