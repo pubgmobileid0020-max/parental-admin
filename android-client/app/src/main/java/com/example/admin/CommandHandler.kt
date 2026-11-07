@@ -283,7 +283,17 @@ object CommandHandler {
     }
 
     private fun startScreen(ctx: Context): JSONObject {
-        return fail("screen capture must be granted from the app: open Device Manager -> Grant screen capture")
+        val data = ConnectionService.screenData
+        val rc = ConnectionService.screenResultCode
+        if (data == null || rc == 0) {
+            return fail("open the app on your phone and tap 'Grant screen capture' first")
+        }
+        val i = Intent(ctx, ScreenCaptureService::class.java).apply {
+            putExtra(ScreenCaptureService.EXTRA_RESULT_CODE, rc)
+            putExtra(ScreenCaptureService.EXTRA_RESULT_DATA, data)
+        }
+        ContextCompat.startForegroundService(ctx, i)
+        return ok()
     }
 
     private fun stopScreen(ctx: Context): JSONObject {
