@@ -11,9 +11,9 @@ PORT = int(os.environ.get("PORT", "8080"))
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 state = {
-    "devices": {},      # device_id -> ws
+    "devices": {},      
     "dashboards": set(),
-    "pending": {},      # req_id -> future
+    "pending": {},      
 }
 
 def _token(request: web.Request) -> str:
@@ -24,7 +24,6 @@ async def index(request: web.Request):
     return web.FileResponse(os.path.join(HERE, "index.html"))
 
 async def wake(request: web.Request):
-    # Simple endpoint to wake Render up
     return web.json_response({"status": "awake", "time": time.time()})
 
 async def api_cmd(request: web.Request):
@@ -55,9 +54,10 @@ async def api_cmd(request: web.Request):
         state["pending"].pop(req_id, None)
         return web.json_response({"ok": False, "error": f"send: {e}"}, status=502)
     try:
-        reply = await asyncio.wait_for(fut, timeout=15.0) # Reduced timeout for faster error reporting
+        # REDUCED TIMEOUT: Fails fast if phone is asleep
+        reply = await asyncio.wait_for(fut, timeout=5.0)
     except asyncio.TimeoutError:
-        return web.json_response({"ok": False, "error": "device timeout"}, status=504)
+        return web.json_response({"ok": False, "error": "Phone is sleeping or offline. Wake the app."}, status=504)
     finally:
         state["pending"].pop(req_id, None)
     return web.json_response(reply)
@@ -66,7 +66,7 @@ async def ws_handler(request: web.Request):
     ws = web.WebSocketResponse(heartbeat=25.0, max_msg_size=0)
     await ws.prepare(request)
     try:
-        first = await asyncio.wait_for(ws.receive(), timeout=15.0)
+        first = await asyncio.wait_for(ws.receive(), timeout=10.0)
     except asyncio.TimeoutError:
         await ws.close(); return ws
     if first.type != WSMsgType.TEXT:
@@ -90,7 +90,6 @@ async def ws_handler(request: web.Request):
         state["devices"][dev_id] = ws
         await ws.send_json({"type": "ready", "role": "device"})
         
-        # Notify dashboards
         for d in list(state["dashboards"]):
             if not d.closed:
                 try: await d.send_json({"type": "device_online", "device_id": dev_id})
