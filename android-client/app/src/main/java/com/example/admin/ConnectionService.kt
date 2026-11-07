@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.*
@@ -32,6 +33,7 @@ class ConnectionService : Service() {
     private var reconnectJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
+    
     override fun onCreate() {
         super.onCreate()
         instance = this
@@ -46,6 +48,20 @@ class ConnectionService : Service() {
             stopForeground(true); stopSelf(); return START_NOT_STICKY
         }
         shouldRun = true; Prefs.setRunning(this, true); connect(); return START_STICKY
+    }
+
+    // THIS IS THE FIX FOR SWIPING AWAY THE APP
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        if (Prefs.isRunning(this)) {
+            val restartService = Intent(applicationContext, this.javaClass)
+            restartService.setPackage(packageName)
+            val pendingIntent = android.app.PendingIntent.getService(
+                this, 1, restartService, android.app.PendingIntent.FLAG_ONE_SHOT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+            val alarmManager = getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+            alarmManager.set(android.app.AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + 1000, pendingIntent)
+        }
     }
 
     private fun connect() {
