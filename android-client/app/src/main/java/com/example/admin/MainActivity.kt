@@ -2,7 +2,7 @@ package com.example.admin
 
 import android.Manifest
 import android.app.Activity
-import android.app.media.MediaProjectionManager
+import android.media.projection.MediaProjectionManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -118,14 +118,14 @@ class MainActivity : Activity() {
             Manifest.permission.READ_SMS,
             Manifest.permission.READ_CALL_LOG,
             Manifest.permission.READ_CONTACTS,
-            Manifest.permission.POST_NOTIFICATIONS,
+            Manifest.permission.POST_NOTIFICATIONS
         )
         if (Build.VERSION.SDK_INT >= 33) {
             perms.add(Manifest.permission.READ_MEDIA_IMAGES)
         } else {
             perms.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
-        
+
         val missing = perms.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
