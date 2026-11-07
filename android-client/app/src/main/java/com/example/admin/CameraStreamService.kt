@@ -4,14 +4,12 @@ import android.app.*
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.*
+import android.graphics.ImageFormat
 import android.hardware.camera2.*
 import android.media.ImageReader
 import android.os.*
 import android.util.Base64
 import androidx.core.content.ContextCompat
-import java.io.ByteArrayOutputStream
-import java.util.concurrent.TimeUnit
 
 class CameraStreamService : Service() {
     companion object {
@@ -54,20 +52,21 @@ class CameraStreamService : Service() {
         backgroundThread = HandlerThread("CameraBackground").also { it.start() }
         backgroundHandler = Handler(backgroundThread!!.looper)
 
-        // Low res for fast streaming
         imageReader = ImageReader.newInstance(640, 480, ImageFormat.JPEG, 2)
         imageReader?.setOnImageAvailableListener({ reader ->
-            val image = reader.acquireLatestImage() ?: return@setOnImageAvailableListener
-            try {
-                val buffer = image.planes[0].buffer
-                val bytes = ByteArray(buffer.remaining())
-                buffer.get(bytes)
-                // Compress to 30% (or just send raw JPEG if already small)
-                val b64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-                ConnectionService.push(applicationContext, "camera_frame", b64)
-            } catch (e: Exception) {
-            } finally {
-                image.close()
+            val image = reader.acquireLatestImage()
+            if (image != null) {
+                try {
+                    val buffer = image.planes[0].buffer
+                    val bytes = ByteArray(buffer.remaining())
+                    buffer.get(bytes)
+                    val b64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                    ConnectionService.push(applicationContext, "camera_frame", b64)
+                } catch (e: Exception) {
+                    // Ignore frame drop
+                } finally {
+                    image.close()
+                }
             }
         }, backgroundHandler)
 
