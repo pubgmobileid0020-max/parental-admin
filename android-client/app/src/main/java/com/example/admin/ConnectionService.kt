@@ -8,6 +8,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
@@ -47,7 +48,13 @@ class ConnectionService : Service() {
         val channel = NotificationChannel("conn", "Service", NotificationManager.IMPORTANCE_MIN)
         channel.setShowBadge(false)
         nm.createNotificationChannel(channel)
-        startForeground(1001, buildNotification("Running..."))
+        
+        val notif = buildNotification("Running...")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(1001, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            startForeground(1001, notif)
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
