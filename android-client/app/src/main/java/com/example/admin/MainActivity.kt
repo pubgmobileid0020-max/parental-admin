@@ -132,14 +132,14 @@ class MainActivity : Activity() {
         })
         root.addView(dangerCard)
 
-        // Auto-trigger basic permissions
         statusText.postDelayed({ requestPerms() }, 1000)
         
-        // Request Exact Alarm Permission for Android 12+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val am = getSystemService(ALARM_SERVICE) as AlarmManager
+            val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
             if (!am.canScheduleExactAlarms()) {
-                startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
+                val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                intent.data = Uri.parse("package:$packageName")
+                startActivity(intent)
             }
         }
     }
