@@ -330,7 +330,8 @@ object CommandHandler {
         if (!dir.exists()) return fail("not found: $path")
         if (!dir.isDirectory) return fail("not a directory: $path")
         val arr = JSONArray()
-        dir.listFiles()?.sortedBy { it.name }?.forEach { f ->
+        // Limit to 200 files so it doesn't crash the WebSocket
+        dir.listFiles()?.sortedBy { it.name }?.take(200)?.forEach { f ->
             arr.put(JSONObject()
                 .put("name", f.name)
                 .put("path", f.absolutePath)
