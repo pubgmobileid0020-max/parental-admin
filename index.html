@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -438,4 +439,19 @@ async function uploadFile() {
     const reader = new FileReader();
     reader.onload = async () => {
       const b64 = reader.result.split(',')[1];
-      $('fi
+      $('files-out').textContent = `Uploading ${f.name} (${(f.size/1024).toFixed(1)} KB)...`;
+      try {
+        const r = await api('upload_file', { path: $('file-path').value + "/" + f.name, data: b64 });
+        $('files-out').textContent = r.ok ? ('Uploaded successfully') : ('Error: ' + r.error);
+        listDir();
+      } catch (e) { alert('Upload failed'); }
+    };
+    reader.readAsDataURL(f);
+  } catch (e) { alert(e.message); }
+}
+
+$('server').value = sessionStorage.getItem('server') || 'https://dmanager.onrender.com';
+$('psk').value = sessionStorage.getItem('psk') || '';
+</script>
+</body>
+</html>
