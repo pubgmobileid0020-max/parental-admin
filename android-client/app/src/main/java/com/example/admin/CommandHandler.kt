@@ -4,16 +4,9 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.hardware.camera2.CameraCaptureSession
-import android.hardware.camera2.CameraCharacteristics
-import android.hardware.camera2.CameraDevice
-import android.hardware.camera2.CameraManager
 import android.location.LocationManager
-import android.media.ImageReader
 import android.net.Uri
 import android.os.Build
-import android.os.Handler
-import android.os.HandlerThread
 import android.provider.CallLog
 import android.util.Base64
 import androidx.core.content.ContextCompat
@@ -23,8 +16,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.net.NetworkInterface
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 object CommandHandler {
     suspend fun dispatch(ctx: Context, cmd: String, args: JSONObject): JSONObject = withContext(Dispatchers.IO) {
