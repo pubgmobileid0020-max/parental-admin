@@ -141,6 +141,10 @@ async def ws_handler(request: web.Request):
         try:
             async for msg in ws:
                 if msg.type != WSMsgType.TEXT: continue
+                try: data = json.loads(msg.data)
+                except Exception: continue
+                if data.get("type") == "ping":
+                    await ws.send_json({"type": "pong"})
         finally:
             state["dashboards"].discard(ws)
             print("🖥️ DASHBOARD DISCONNECTED", flush=True)
