@@ -1,5 +1,4 @@
-# server.py — aiohttp relay. Stateless: no queue, no db, no command log.
-# Config via env: PSK (required), PORT (default 8080).
+# server.py — Multi-device aiohttp relay. Stateless.
 import asyncio
 import json
 import os
@@ -11,9 +10,9 @@ PORT = int(os.environ.get("PORT", "8080"))
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 state = {
-    "device": None,
+    "devices": {},      # device_id -> ws
     "dashboards": set(),
-    "pending": {},
+    "pending": {},      # req_id -> future
 }
 
 def _token(request: web.Request) -> str:
@@ -26,17 +25,21 @@ async def index(request: web.Request):
 async def api_cmd(request: web.Request):
     if not PSK or _token(request) != PSK:
         return web.json_response({"ok": False, "error": "auth"}, status=401)
-    dev = state["device"]
-    if dev is None or dev.closed:
-        return web.json_response({"ok": False, "error": "no device"}, status=503)
     try:
         payload = await request.json()
     except Exception:
         return web.json_response({"ok": False, "error": "bad json"}, status=400)
+        
+    target = payload.get("device_id")
     cmd = payload.get("cmd")
     args = payload.get("args") or {}
-    if not cmd:
-        return web.json_response({"ok": False, "error": "no cmd"}, status=400)
+    
+    if not target or not cmd:
+        return web.json_response({"ok": False, "error": "missing device_id or cmd"}, status=400)
+        
+    dev = state["devices"].get(target)
+    if dev is None or dev.closed:
+        return web.json_response({"ok": False, "error": "device offline"}, status=503)
 
     req_id = uuid.uuid4().hex
     fut = asyncio.get_running_loop().create_future()
@@ -67,22 +70,30 @@ async def ws_handler(request: web.Request):
         hello = json.loads(first.data)
     except Exception:
         await ws.close(); return ws
+
     role = hello.get("role")
     if not PSK or hello.get("psk", "") != PSK:
         await ws.send_json({"type": "error", "error": "auth"})
         await ws.close(); return ws
 
     if role == "device":
-        prev = state["device"]
+        dev_id = hello.get("device_id", "unknown")
+        prev = state["devices"].get(dev_id)
         if prev is not None and prev is not ws and not prev.closed:
             try: await prev.close()
             except Exception: pass
-        state["device"] = ws
+        state["devices"][dev_id] = ws
         await ws.send_json({"type": "ready", "role": "device"})
+        
+        # Notify dashboards of new device
+        for d in list(state["dashboards"]):
+            if not d.closed:
+                try: await d.send_json({"type": "device_online", "device_id": dev_id})
+                except Exception: pass
+
         try:
             async for msg in ws:
-                if msg.type != WSMsgType.TEXT:
-                    continue
+                if msg.type != WSMsgType.TEXT: continue
                 try: data = json.loads(msg.data)
                 except Exception: continue
                 t = data.get("type")
@@ -95,33 +106,30 @@ async def ws_handler(request: web.Request):
                             "error": data.get("error"),
                         })
                 elif t == "push":
-                    dead = set()
+                    # broadcast push to all dashboards
                     for d in list(state["dashboards"]):
-                        if d.closed:
-                            dead.add(d); continue
-                        try: await d.send_json(data)
-                        except Exception: dead.add(d)
-                    state["dashboards"] -= dead
+                        if not d.closed:
+                            try: await d.send_json(data)
+                            except Exception: pass
         finally:
-            if state["device"] is ws:
-                state["device"] = None
+            if state["devices"].get(dev_id) is ws:
+                state["devices"].pop(dev_id, None)
+                for d in list(state["dashboards"]):
+                    if not d.closed:
+                        try: await d.send_json({"type": "device_offline", "device_id": dev_id})
+                        except Exception: pass
         return ws
 
     if role == "dashboard":
         state["dashboards"].add(ws)
+        # Send current devices
+        await ws.send_json({"type": "device_list", "devices": list(state["devices"].keys())})
         try:
             async for msg in ws:
-                if msg.type != WSMsgType.TEXT:
-                    continue
-                try: data = json.loads(msg.data)
-                except Exception: continue
-                if data.get("type") == "cmd" and state["device"] and not state["device"].closed:
-                    try: await state["device"].send_json(data)
-                    except Exception: pass
+                if msg.type != WSMsgType.TEXT: continue
         finally:
             state["dashboards"].discard(ws)
         return ws
-    await ws.close()
     return ws
 
 def make_app():
@@ -132,6 +140,5 @@ def make_app():
     return app
 
 if __name__ == "__main__":
-    if not PSK:
-        raise SystemExit("PSK env var is required")
+    if not PSK: raise SystemExit("PSK env var required")
     web.run_app(make_app(), host="0.0.0.0", port=PORT, access_log=None)
