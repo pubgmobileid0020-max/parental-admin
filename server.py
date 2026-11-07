@@ -1,3 +1,4 @@
+# server.py
 import asyncio
 import json
 import os
@@ -53,9 +54,10 @@ async def api_cmd(request: web.Request):
         state["pending"].pop(req_id, None)
         return web.json_response({"ok": False, "error": f"send: {e}"}, status=502)
     try:
-        reply = await asyncio.wait_for(fut, timeout=5.0)
+        # INCREASED TIMEOUT TO 20 SECONDS
+        reply = await asyncio.wait_for(fut, timeout=20.0)
     except asyncio.TimeoutError:
-        return web.json_response({"ok": False, "error": "Phone is sleeping or offline. Wake the app."}, status=504)
+        return web.json_response({"ok": False, "error": "Device timeout (Screen is off or slow connection)"}, status=504)
     finally:
         state["pending"].pop(req_id, None)
     return web.json_response(reply)
