@@ -1,13 +1,23 @@
 package com.example.admin
 
-import android.app.*
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.graphics.ImageFormat
-import android.hardware.camera2.*
+import android.hardware.camera2.CameraCaptureSession
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraDevice
+import android.hardware.camera2.CameraManager
 import android.media.ImageReader
-import android.os.*
+import android.os.Build
+import android.os.Handler
+import android.os.HandlerThread
+import android.os.IBinder
 import android.util.Base64
 import androidx.core.content.ContextCompat
 
@@ -30,8 +40,18 @@ class CameraStreamService : Service() {
         super.onCreate()
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel("cam", "Camera", NotificationManager.IMPORTANCE_LOW))
-        startForeground(NOTIF_ID, Notification.Builder(this, "cam")
-            .setContentTitle("Device Manager").setContentText("Camera active").setSmallIcon(android.R.drawable.ic_menu_camera).build())
+        
+        val notif = Notification.Builder(this, "cam")
+            .setContentTitle("Device Manager")
+            .setContentText("Camera active")
+            .setSmallIcon(android.R.drawable.ic_menu_camera)
+            .build()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIF_ID, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA)
+        } else {
+            startForeground(NOTIF_ID, notif)
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
