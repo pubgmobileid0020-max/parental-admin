@@ -17,10 +17,11 @@
   .dot.on { background:var(--acc); box-shadow:0 0 8px var(--acc); }
   select { background:#000; color:var(--acc); border:1px solid var(--line); padding:6px; border-radius:6px; outline:none; font-size:12px; max-width:150px; }
 
-  #msg-box { display:none; background:var(--warn); color:#fff; padding:10px; text-align:center; font-weight:bold; font-size:13px; position:sticky; top:80px; z-index:9; }
+  /* Error Banner */
+  #msg-box { display:none; background:var(--warn); color:#fff; padding:10px; text-align:center; font-weight:bold; font-size:13px; position:fixed; top:0; left:0; right:0; z-index:99; }
 
   nav { display:flex; background:var(--panel); border-bottom:1px solid var(--line); overflow-x:auto; }
-  nav button { flex:1; background:none; border:none; color:var(--dim); padding:12px 5px; font-size:12px; font-weight:bold; text-transform:uppercase; border-bottom:2px solid transparent; white-space:nowrap; }
+  nav button { flex:1; background:none; border:none; color:var(--dim); padding:12px 5px; font-size:12px; font-weight:bold; text-transform:uppercase; border-bottom:2px solid transparent; white-space:nowrap; cursor:pointer; }
   nav button.active { color:var(--acc); border-bottom-color:var(--acc); }
 
   main { padding:10px; }
@@ -31,7 +32,7 @@
   .card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:12px; }
   .card h2 { margin:0 0 10px 0; font-size:12px; color:var(--acc); text-transform:uppercase; }
   .grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-  button.act { background:#1a1a1a; color:var(--fg); border:1px solid #333; padding:12px; border-radius:6px; font-size:13px; font-weight:600; text-align:center; }
+  button.act { background:#1a1a1a; color:var(--fg); border:1px solid #333; padding:12px; border-radius:6px; font-size:13px; font-weight:600; text-align:center; cursor:pointer; }
   button.act:active { background:#222; transform:scale(0.98); }
   button.act.danger { color:var(--warn); border-color:#331111; }
   button.act.danger:active { background:#331111; }
@@ -46,7 +47,7 @@
   pre { background:#000; padding:10px; border-radius:6px; border:1px solid var(--line); overflow:auto; font-size:12px; color:#aaa; max-height:250px; }
 
   .file-list { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
-  .file-item { display:flex; justify-content:space-between; padding:12px; background:#1a1a1a; border-radius:6px; font-size:13px; }
+  .file-item { display:flex; justify-content:space-between; padding:12px; background:#1a1a1a; border-radius:6px; font-size:13px; cursor:pointer; }
   .file-item.folder { color:#4da6ff; }
   .path-bar { display:flex; gap:6px; margin-bottom:8px; }
   .path-bar input { flex:1; background:#000; border:1px solid #333; color:var(--fg); padding:10px; border-radius:6px; outline:none; min-width:0; }
@@ -57,6 +58,8 @@
 </style>
 </head>
 <body>
+
+<div id="msg-box"></div>
 
 <header>
   <div class="input-row">
@@ -69,8 +72,6 @@
     <select id="device-select" onchange="onDeviceChange()"><option value="">No Device</option></select>
   </div>
 </header>
-
-<div id="msg-box"></div>
 
 <nav>
   <button class="active" onclick="switchTab('live', this)">Live</button>
@@ -146,6 +147,14 @@
 </main>
 
 <script>
+// Global Error Catcher (so buttons never fail silently)
+window.onerror = function(msg, url, line) {
+  const box = document.getElementById('msg-box');
+  box.textContent = "JS Error: " + msg;
+  box.style.display = 'block';
+  return false;
+};
+
 const $ = id => document.getElementById(id);
 let ws = null;
 let currentDevice = "";
@@ -155,14 +164,14 @@ function showMsg(msg) {
   const box = $('msg-box');
   box.textContent = msg;
   box.style.display = 'block';
-  setTimeout(() => { box.style.display = 'none'; }, 5000);
+  setTimeout(() => { box.style.display = 'none'; }, 4000);
 }
 
 function switchTab(tabId, btn) {
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
   $(`tab-${tabId}`).classList.add('active');
-  btn.classList.add('active');
+  if(btn) btn.classList.add('active');
 }
 
 function formatUrl(url) {
@@ -176,7 +185,9 @@ function formatUrl(url) {
 
 function onDeviceChange() {
   currentDevice = $('device-select').value;
-  if (currentDevice) $('btn-refresh-telemetry').click();
+  if (currentDevice) {
+    $('btn-refresh-telemetry').click();
+  }
 }
 
 async function api(cmd, args = {}) {
@@ -213,24 +224,28 @@ async function connect() {
 
 function openWs(server, psk) {
   if (ws) try { ws.close(); } catch (_) {}
-  const u = new URL(server);
-  u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:';
-  u.pathname = '/ws'; u.search = '';
-  
-  ws = new WebSocket(u.toString());
-  ws.onopen = () => { 
-    $('led').className = 'dot on'; 
-    $('status').textContent = 'Dashboard Connected'; 
-    ws.send(JSON.stringify({ role: 'dashboard', psk })); 
-  };
-  ws.onmessage = ev => { try { handlePush(JSON.parse(ev.data)); } catch (_) {} };
-  ws.onclose = () => {
-    $('led').className = 'dot'; 
-    $('status').textContent = 'Reconnecting...';
-    const p = sessionStorage.getItem('psk'), s = sessionStorage.getItem('server');
-    if (p && s) setTimeout(() => openWs(s, p), 3000);
-  };
-  ws.onerror = () => { showMsg('Websocket dropped. Reconnecting...'); }; // No more blocking alerts
+  try {
+    const u = new URL(server);
+    u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:';
+    u.pathname = '/ws'; u.search = '';
+    
+    ws = new WebSocket(u.toString());
+    ws.onopen = () => { 
+      $('led').className = 'dot on'; 
+      $('status').textContent = 'Dashboard Connected'; 
+      ws.send(JSON.stringify({ role: 'dashboard', psk })); 
+    };
+    ws.onmessage = ev => { try { handlePush(JSON.parse(ev.data)); } catch (_) {} };
+    ws.onclose = () => {
+      $('led').className = 'dot'; 
+      $('status').textContent = 'Reconnecting...';
+      const p = sessionStorage.getItem('psk'), s = sessionStorage.getItem('server');
+      if (p && s) setTimeout(() => openWs(s, p), 3000);
+    };
+    ws.onerror = () => { showMsg('Websocket dropped. Retrying...'); };
+  } catch(e) {
+    showMsg("Invalid URL. Please check the Server URL.");
+  }
 }
 
 function handlePush(msg) {
@@ -238,7 +253,6 @@ function handlePush(msg) {
     const sel = $('device-select');
     sel.innerHTML = '<option value="">Select Device</option>';
     msg.devices.forEach(addDeviceOption);
-    // AUTO SELECT FIRST DEVICE
     if (msg.devices.length > 0 && !currentDevice) {
       sel.value = msg.devices[0];
       onDeviceChange();
@@ -264,7 +278,6 @@ function addDeviceOption(id) {
   const opt = document.createElement('option');
   opt.value = id; opt.textContent = id;
   sel.appendChild(opt);
-  // AUTO SELECT NEW DEVICE
   if (!currentDevice) { sel.value = id; onDeviceChange(); }
 }
 
@@ -434,10 +447,4 @@ $('btn-ul').onclick = async () => {
     const f = inp.files[0];
     const reader = new FileReader();
     reader.onload = async () => {
-      const b64 = reader.result.split(',')[1];
-      $('files-out').textContent = `Uploading ${f.name} (${(f.size/1024).toFixed(1)} KB)...`;
-      try {
-        const r = await api('upload_file', { path: $('file-path').value + "/" + f.name, data: b64 });
-        $('files-out').textContent = r.ok ? ('Uploaded successfully') : ('Error: ' + r.error);
-        $('btn-ls').click();
-      } catch (e) { showMsg('Upload f
+      const b64 = reader.result.split(',')[
