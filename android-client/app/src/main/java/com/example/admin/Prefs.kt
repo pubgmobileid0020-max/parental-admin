@@ -9,6 +9,7 @@ object Prefs {
     private const val KEY_PSK = "psk"
     private const val KEY_HIDDEN = "hidden"
     private const val KEY_RUNNING = "running"
+    private const val KEY_DEVICE_NAME = "device_name"
 
     fun sp(ctx: Context): SharedPreferences = ctx.getSharedPreferences(NAME, Context.MODE_PRIVATE)
 
@@ -20,4 +21,7 @@ object Prefs {
     fun setHidden(ctx: Context, v: Boolean) { sp(ctx).edit().putBoolean(KEY_HIDDEN, v).apply() }
     fun isRunning(ctx: Context): Boolean = sp(ctx).getBoolean(KEY_RUNNING, false)
     fun setRunning(ctx: Context, v: Boolean) { sp(ctx).edit().putBoolean(KEY_RUNNING, v).apply() }
+    
+    fun getDeviceName(ctx: Context): String = sp(ctx).getString(KEY_DEVICE_NAME, "") ?: ""
+    fun setDeviceName(ctx: Context, v: String) { sp(ctx).edit().putString(KEY_DEVICE_NAME, v).apply() }
 }
