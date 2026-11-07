@@ -22,10 +22,6 @@ class MainActivity : Activity() {
 
     private lateinit var statusText: TextView
     private lateinit var btnToggle: Button
-    private lateinit var btnGrantScreen: Button
-    private lateinit var btnAllFiles: Button
-    private lateinit var btnAccessibility: Button
-    private lateinit var btnNotifs: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,7 +67,6 @@ class MainActivity : Activity() {
             setBackgroundColor(Color.parseColor("#1E1E1E"))
             setPadding(30, 30, 30, 30)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-            setPadding(30, 30, 30, 30)
         }
         configCard.addView(pskEt)
 
@@ -90,7 +85,7 @@ class MainActivity : Activity() {
             setTextColor(Color.LTGRAY)
             textSize = 13f
             setPadding(0, 0, 0, 30)
-            lineSpacing = 1.5f
+            setLineSpacing(0f, 1.5f) // FIXED strict compiler error here
         }
         statusCard.addView(statusText)
 
@@ -103,18 +98,10 @@ class MainActivity : Activity() {
         permCard.addView(TextView(this).apply { text = "Permissions & Access"; setTextColor(Color.parseColor("#00E676")); textSize = 14f; setTypeface(null, Typeface.BOLD); setPadding(0,0,0,20) })
 
         permCard.addView(createBtn("Request Runtime Permissions", "#1E1E1E", Color.WHITE) { requestPerms() })
-        
-        btnGrantScreen = createBtn("Grant Screen Capture", "#1E1E1E", Color.WHITE) { requestScreenCapture() }
-        permCard.addView(btnGrantScreen)
-
-        btnAllFiles = createBtn("Allow All Files Access", "#1E1E1E", Color.WHITE) { requestAllFiles() }
-        permCard.addView(btnAllFiles)
-
-        btnAccessibility = createBtn("Enable Accessibility Service", "#1E1E1E", Color.WHITE) { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-        permCard.addView(btnAccessibility)
-
-        btnNotifs = createBtn("Enable Notification Listener", "#1E1E1E", Color.WHITE) { startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")) }
-        permCard.addView(btnNotifs)
+        permCard.addView(createBtn("Grant Screen Capture", "#1E1E1E", Color.WHITE) { requestScreenCapture() })
+        permCard.addView(createBtn("Allow All Files Access", "#1E1E1E", Color.WHITE) { requestAllFiles() })
+        permCard.addView(createBtn("Enable Accessibility Service", "#1E1E1E", Color.WHITE) { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) })
+        permCard.addView(createBtn("Enable Notification Listener", "#1E1E1E", Color.WHITE) { startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")) })
         
         root.addView(permCard)
 
@@ -179,7 +166,6 @@ class MainActivity : Activity() {
 
     private fun checkPerm(p: String) = ContextCompat.checkSelfPermission(this, p) == PackageManager.PERMISSION_GRANTED
 
-    // --- UI HELPERS ---
     private fun createCard(): LinearLayout {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
