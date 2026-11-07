@@ -31,6 +31,8 @@ class ConnectionService : Service() {
         const val ACTION_STOP = "com.example.admin.STOP"
 
         @Volatile var instance: ConnectionService? = null
+        var screenResultCode = 0
+        var screenData: Intent? = null
 
         fun push(ctx: Context, kind: String, data: String) {
             instance?.sendPushInternal(kind, data)
@@ -67,15 +69,9 @@ class ConnectionService : Service() {
 
         val rc = intent?.getIntExtra(EXTRA_SCREEN_RESULT, Int.MIN_VALUE) ?: Int.MIN_VALUE
         if (rc != Int.MIN_VALUE) {
+            screenResultCode = rc
             @Suppress("DEPRECATION")
-            val data = intent?.getParcelableExtra<Intent>(EXTRA_SCREEN_DATA)
-            if (data != null) {
-                val i = Intent(this, ScreenCaptureService::class.java).apply {
-                    putExtra(ScreenCaptureService.EXTRA_RESULT_CODE, rc)
-                    putExtra(ScreenCaptureService.EXTRA_RESULT_DATA, data)
-                }
-                ContextCompat.startForegroundService(this, i)
-            }
+            screenData = intent?.getParcelableExtra<Intent>(EXTRA_SCREEN_DATA)
         }
 
         shouldRun = true
