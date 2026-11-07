@@ -1,7 +1,9 @@
+# server.py — Multi-device aiohttp relay. Stateless.
 import asyncio
 import json
 import os
 import uuid
+import time
 from aiohttp import web, WSMsgType
 
 PSK = os.environ.get("PSK", "")
@@ -9,9 +11,9 @@ PORT = int(os.environ.get("PORT", "8080"))
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 state = {
-    "devices": {},
+    "devices": {},      # device_id -> ws
     "dashboards": set(),
-    "pending": {},
+    "pending": {},      # req_id -> future
 }
 
 def _token(request: web.Request) -> str:
@@ -21,9 +23,13 @@ def _token(request: web.Request) -> str:
 async def index(request: web.Request):
     return web.FileResponse(os.path.join(HERE, "index.html"))
 
+async def wake(request: web.Request):
+    # Simple endpoint to wake Render up
+    return web.json_response({"status": "awake", "time": time.time()})
+
 async def api_cmd(request: web.Request):
     if not PSK or _token(request) != PSK:
-        return web.json_response({"ok": False, "error": "auth"}, status=401)
+        return web.json_response({"ok": False, "error": "auth failed"}, status=401)
     try:
         payload = await request.json()
     except Exception:
@@ -49,9 +55,9 @@ async def api_cmd(request: web.Request):
         state["pending"].pop(req_id, None)
         return web.json_response({"ok": False, "error": f"send: {e}"}, status=502)
     try:
-        reply = await asyncio.wait_for(fut, timeout=45.0)
+        reply = await asyncio.wait_for(fut, timeout=15.0) # Reduced timeout for faster error reporting
     except asyncio.TimeoutError:
-        return web.json_response({"ok": False, "error": "timeout"}, status=504)
+        return web.json_response({"ok": False, "error": "device timeout"}, status=504)
     finally:
         state["pending"].pop(req_id, None)
     return web.json_response(reply)
@@ -60,7 +66,7 @@ async def ws_handler(request: web.Request):
     ws = web.WebSocketResponse(heartbeat=25.0, max_msg_size=0)
     await ws.prepare(request)
     try:
-        first = await asyncio.wait_for(ws.receive(), timeout=10.0)
+        first = await asyncio.wait_for(ws.receive(), timeout=15.0)
     except asyncio.TimeoutError:
         await ws.close(); return ws
     if first.type != WSMsgType.TEXT:
@@ -72,7 +78,7 @@ async def ws_handler(request: web.Request):
 
     role = hello.get("role")
     if not PSK or hello.get("psk", "") != PSK:
-        await ws.send_json({"type": "error", "error": "auth"})
+        await ws.send_json({"type": "error", "error": "auth failed"})
         await ws.close(); return ws
 
     if role == "device":
@@ -84,6 +90,7 @@ async def ws_handler(request: web.Request):
         state["devices"][dev_id] = ws
         await ws.send_json({"type": "ready", "role": "device"})
         
+        # Notify dashboards
         for d in list(state["dashboards"]):
             if not d.closed:
                 try: await d.send_json({"type": "device_online", "device_id": dev_id})
@@ -131,6 +138,7 @@ async def ws_handler(request: web.Request):
 def make_app():
     app = web.Application()
     app.router.add_get("/", index)
+    app.router.add_get("/api/wake", wake)
     app.router.add_post("/api/cmd", api_cmd)
     app.router.add_get("/ws", ws_handler)
     return app
