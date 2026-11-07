@@ -70,7 +70,7 @@ class ConnectionService : Service() {
     private val listener = object : WebSocketListener() {
         override fun onOpen(webSocket: WebSocket, response: Response) {
             backoff = 1000L
-            val deviceId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+            val deviceId = Settings.Secure.getString(applicationContext.contentResolver, Settings.Secure.ANDROID_ID) ?: "unknown"
             val hello = JSONObject().put("role", "device").put("psk", Prefs.getPsk(this@ConnectionService)).put("device_id", deviceId)
             webSocket.send(hello.toString())
             updateNotification("Connected")
