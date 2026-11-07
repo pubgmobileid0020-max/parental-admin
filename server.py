@@ -1,4 +1,4 @@
-# server.py
+# server.py — Multi-device aiohttp relay. Stateless.
 import asyncio
 import json
 import os
@@ -43,21 +43,23 @@ async def api_cmd(request: web.Request):
         
     dev_data = state["devices"].get(target)
     if not dev_data or dev_data["ws"].closed:
+        print(f"❌ CMD FAILED: Device {target} offline", flush=True)
         return web.json_response({"ok": False, "error": "device offline"}, status=503)
 
     req_id = uuid.uuid4().hex
     fut = asyncio.get_running_loop().create_future()
     state["pending"][req_id] = fut
     try:
+        print(f"📤 Sending command '{cmd}' to {dev_data['name']}", flush=True)
         await dev_data["ws"].send_json({"type": "cmd", "id": req_id, "cmd": cmd, "args": args})
     except Exception as e:
         state["pending"].pop(req_id, None)
         return web.json_response({"ok": False, "error": f"send: {e}"}, status=502)
     try:
-        # INCREASED TIMEOUT TO 20 SECONDS
         reply = await asyncio.wait_for(fut, timeout=20.0)
     except asyncio.TimeoutError:
-        return web.json_response({"ok": False, "error": "Device timeout (Screen is off or slow connection)"}, status=504)
+        print(f"⏳ CMD TIMEOUT: {dev_data['name']} did not reply", flush=True)
+        return web.json_response({"ok": False, "error": "Device timeout"}, status=504)
     finally:
         state["pending"].pop(req_id, None)
     return web.json_response(reply)
@@ -78,6 +80,7 @@ async def ws_handler(request: web.Request):
 
     role = hello.get("role")
     if not PSK or hello.get("psk", "") != PSK:
+        print("🚫 AUTH FAILED: Wrong PSK", flush=True)
         await ws.send_json({"type": "error", "error": "auth failed"})
         await ws.close(); return ws
 
@@ -91,6 +94,8 @@ async def ws_handler(request: web.Request):
             except Exception: pass
             
         state["devices"][dev_id] = {"ws": ws, "name": dev_name}
+        print(f"✅ PHONE CONNECTED: {dev_name} ({dev_id})", flush=True)
+        
         await ws.send_json({"type": "ready", "role": "device"})
         
         for d in list(state["dashboards"]):
@@ -120,6 +125,7 @@ async def ws_handler(request: web.Request):
         finally:
             if state["devices"].get(dev_id) and state["devices"][dev_id]["ws"] is ws:
                 state["devices"].pop(dev_id, None)
+                print(f"❌ PHONE DISCONNECTED: {dev_name}", flush=True)
                 for d in list(state["dashboards"]):
                     if not d.closed:
                         try: await d.send_json({"type": "device_offline", "device_id": dev_id})
@@ -129,12 +135,15 @@ async def ws_handler(request: web.Request):
     if role == "dashboard":
         state["dashboards"].add(ws)
         dev_list = [{"id": k, "name": v["name"]} for k, v in state["devices"].items()]
+        print(f"🖥️ DASHBOARD CONNECTED. Sending devices: {dev_list}", flush=True)
+        
         await ws.send_json({"type": "device_list", "devices": dev_list})
         try:
             async for msg in ws:
                 if msg.type != WSMsgType.TEXT: continue
         finally:
             state["dashboards"].discard(ws)
+            print("🖥️ DASHBOARD DISCONNECTED", flush=True)
         return ws
     return ws
 
@@ -148,4 +157,5 @@ def make_app():
 
 if __name__ == "__main__":
     if not PSK: raise SystemExit("PSK env var required")
+    print("🚀 SERVER STARTING...", flush=True)
     web.run_app(make_app(), host="0.0.0.0", port=PORT, access_log=None)
