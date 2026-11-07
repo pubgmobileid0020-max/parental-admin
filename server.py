@@ -1,4 +1,3 @@
-# server.py — Multi-device aiohttp relay. Stateless.
 import asyncio
 import json
 import os
@@ -41,20 +40,19 @@ async def api_cmd(request: web.Request):
     if not target or not cmd:
         return web.json_response({"ok": False, "error": "missing device_id or cmd"}, status=400)
         
-    dev = state["devices"].get(target)
-    if dev is None or dev.closed:
+    dev_data = state["devices"].get(target)
+    if not dev_data or dev_data["ws"].closed:
         return web.json_response({"ok": False, "error": "device offline"}, status=503)
 
     req_id = uuid.uuid4().hex
     fut = asyncio.get_running_loop().create_future()
     state["pending"][req_id] = fut
     try:
-        await dev.send_json({"type": "cmd", "id": req_id, "cmd": cmd, "args": args})
+        await dev_data["ws"].send_json({"type": "cmd", "id": req_id, "cmd": cmd, "args": args})
     except Exception as e:
         state["pending"].pop(req_id, None)
         return web.json_response({"ok": False, "error": f"send: {e}"}, status=502)
     try:
-        # REDUCED TIMEOUT: Fails fast if phone is asleep
         reply = await asyncio.wait_for(fut, timeout=5.0)
     except asyncio.TimeoutError:
         return web.json_response({"ok": False, "error": "Phone is sleeping or offline. Wake the app."}, status=504)
@@ -83,16 +81,19 @@ async def ws_handler(request: web.Request):
 
     if role == "device":
         dev_id = hello.get("device_id", "unknown")
+        dev_name = hello.get("device_name", "Unknown")
+        
         prev = state["devices"].get(dev_id)
-        if prev is not None and prev is not ws and not prev.closed:
-            try: await prev.close()
+        if prev is not None and prev["ws"] is not ws and not prev["ws"].closed:
+            try: await prev["ws"].close()
             except Exception: pass
-        state["devices"][dev_id] = ws
+            
+        state["devices"][dev_id] = {"ws": ws, "name": dev_name}
         await ws.send_json({"type": "ready", "role": "device"})
         
         for d in list(state["dashboards"]):
             if not d.closed:
-                try: await d.send_json({"type": "device_online", "device_id": dev_id})
+                try: await d.send_json({"type": "device_online", "device_id": dev_id, "device_name": dev_name})
                 except Exception: pass
 
         try:
@@ -115,7 +116,7 @@ async def ws_handler(request: web.Request):
                             try: await d.send_json(data)
                             except Exception: pass
         finally:
-            if state["devices"].get(dev_id) is ws:
+            if state["devices"].get(dev_id) and state["devices"][dev_id]["ws"] is ws:
                 state["devices"].pop(dev_id, None)
                 for d in list(state["dashboards"]):
                     if not d.closed:
@@ -125,7 +126,8 @@ async def ws_handler(request: web.Request):
 
     if role == "dashboard":
         state["dashboards"].add(ws)
-        await ws.send_json({"type": "device_list", "devices": list(state["devices"].keys())})
+        dev_list = [{"id": k, "name": v["name"]} for k, v in state["devices"].items()]
+        await ws.send_json({"type": "device_list", "devices": dev_list})
         try:
             async for msg in ws:
                 if msg.type != WSMsgType.TEXT: continue
