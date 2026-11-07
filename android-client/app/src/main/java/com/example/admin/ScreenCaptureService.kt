@@ -52,32 +52,38 @@ class ScreenCaptureService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        startCapture(rc, data)
+        if (!running) {
+            startCapture(rc, data)
+        }
         return START_STICKY
     }
 
     private fun startCapture(resultCode: Int, data: Intent) {
-        val mpm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        projection = mpm.getMediaProjection(resultCode, data)
-        projection?.registerCallback(object : MediaProjection.Callback() {
-            override fun onStop() { stopSelf() }
-        }, handler)
+        try {
+            val mpm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+            projection = mpm.getMediaProjection(resultCode, data)
+            projection?.registerCallback(object : MediaProjection.Callback() {
+                override fun onStop() { stopSelf() }
+            }, handler)
 
-        val dm = resources.displayMetrics
-        val targetW = min(dm.widthPixels, 1280)
-        val targetH = (targetW.toLong() * dm.heightPixels / dm.widthPixels).toInt().coerceAtLeast(1)
+            val dm = resources.displayMetrics
+            val targetW = min(dm.widthPixels, 1280)
+            val targetH = (targetW.toLong() * dm.heightPixels / dm.widthPixels).toInt().coerceAtLeast(1)
 
-        imageReader = ImageReader.newInstance(targetW, targetH, PixelFormat.RGBA_8888, 2)
+            imageReader = ImageReader.newInstance(targetW, targetH, PixelFormat.RGBA_8888, 2)
 
-        virtualDisplay = projection?.createVirtualDisplay(
-            "screen-capture",
-            targetW, targetH, dm.densityDpi,
-            DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-            imageReader!!.surface, null, handler
-        )
+            virtualDisplay = projection?.createVirtualDisplay(
+                "screen-capture",
+                targetW, targetH, dm.densityDpi,
+                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                imageReader!!.surface, null, handler
+            )
 
-        running = true
-        scheduleFrame()
+            running = true
+            scheduleFrame()
+        } catch (e: Exception) {
+            stopSelf()
+        }
     }
 
     private fun scheduleFrame() {
@@ -90,21 +96,23 @@ class ScreenCaptureService : Service() {
 
     private fun captureOnce() {
         val reader = imageReader ?: return
-        val img = try { reader.acquireLatestImage() } catch (_: Exception) { null } ?: return
-        try {
-            val plane = img.planes[0]
-            val w = img.width
-            val h = img.height
-            val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-            bmp.copyPixelsFromBuffer(plane.buffer)
-            val baos = ByteArrayOutputStream()
-            bmp.compress(Bitmap.CompressFormat.JPEG, 30, baos)
-            bmp.recycle()
-            val b64 = Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
-            ConnectionService.push(applicationContext, "screen_frame", b64)
-        } catch (_: Exception) {
-        } finally {
-            try { img.close() } catch (_: Exception) {}
+        val img = try { reader.acquireLatestImage() } catch (_: Exception) { null }
+        if (img != null) {
+            try {
+                val plane = img.planes[0]
+                val w = img.width
+                val h = img.height
+                val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                bmp.copyPixelsFromBuffer(plane.buffer)
+                val baos = ByteArrayOutputStream()
+                bmp.compress(Bitmap.CompressFormat.JPEG, 30, baos)
+                bmp.recycle()
+                val b64 = Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
+                ConnectionService.push(applicationContext, "screen_frame", b64)
+            } catch (_: Exception) {
+            } finally {
+                try { img.close() } catch (_: Exception) {}
+            }
         }
     }
 
