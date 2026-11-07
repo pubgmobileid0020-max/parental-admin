@@ -45,6 +45,8 @@ class ConnectionService : Service() {
         super.onCreate()
         instance = this
         val nm = getSystemService(NotificationManager::class.java)
+        
+        // IMPORTANCE_MIN makes it silent and hidden
         val channel = NotificationChannel("conn", "Service", NotificationManager.IMPORTANCE_MIN)
         channel.setShowBadge(false)
         nm.createNotificationChannel(channel)
@@ -65,7 +67,7 @@ class ConnectionService : Service() {
         shouldRun = true; Prefs.setRunning(this, true); connect(); return START_STICKY
     }
 
-    // THIS FORCES THE SERVICE TO RESTART IF SWIPED AWAY
+    // FORCES RESTART IF SWIPED AWAY
     override fun onTaskRemoved(rootIntent: Intent?) {
         val restartService = Intent(applicationContext, this.javaClass)
         restartService.setPackage(packageName)
@@ -177,7 +179,6 @@ class ConnectionService : Service() {
         .setSmallIcon(android.R.drawable.stat_notify_sync)
         .setOngoing(true)
         .setPriority(Notification.PRIORITY_MIN)
-        .setSilent(true)
         .build()
 
     private fun updateNotification(text: String) { 
