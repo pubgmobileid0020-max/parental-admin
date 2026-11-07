@@ -1,4 +1,3 @@
-# server.py — Multi-device aiohttp relay. Stateless.
 import asyncio
 import json
 import os
@@ -10,9 +9,9 @@ PORT = int(os.environ.get("PORT", "8080"))
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 state = {
-    "devices": {},      # device_id -> ws
+    "devices": {},
     "dashboards": set(),
-    "pending": {},      # req_id -> future
+    "pending": {},
 }
 
 def _token(request: web.Request) -> str:
@@ -85,7 +84,6 @@ async def ws_handler(request: web.Request):
         state["devices"][dev_id] = ws
         await ws.send_json({"type": "ready", "role": "device"})
         
-        # Notify dashboards of new device
         for d in list(state["dashboards"]):
             if not d.closed:
                 try: await d.send_json({"type": "device_online", "device_id": dev_id})
@@ -106,7 +104,6 @@ async def ws_handler(request: web.Request):
                             "error": data.get("error"),
                         })
                 elif t == "push":
-                    # broadcast push to all dashboards
                     for d in list(state["dashboards"]):
                         if not d.closed:
                             try: await d.send_json(data)
@@ -122,7 +119,6 @@ async def ws_handler(request: web.Request):
 
     if role == "dashboard":
         state["dashboards"].add(ws)
-        # Send current devices
         await ws.send_json({"type": "device_list", "devices": list(state["devices"].keys())})
         try:
             async for msg in ws:
