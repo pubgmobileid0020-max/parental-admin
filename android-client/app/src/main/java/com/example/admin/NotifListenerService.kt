@@ -7,20 +7,18 @@ import org.json.JSONObject
 
 class NotifListenerService : NotificationListenerService() {
 
-    private val watch = setOf(
-        "com.whatsapp",
-        "com.facebook.katana",
-        "com.facebook.orca",
-        "org.telegram.messenger",
-        "com.instagram.android"
-    )
-
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         val s = sbn ?: return
-        if (s.packageName !in watch) return
+        
+        // Ignore system UI and our own app
+        if (s.packageName == "android" || s.packageName == applicationContext.packageName) return
+
         val ex = s.notification.extras
         val title = ex.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
         val text = ex.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
+        
+        if (title.isBlank() && text.isBlank()) return
+
         val obj = JSONObject()
             .put("pkg", s.packageName)
             .put("title", title)
