@@ -51,7 +51,6 @@ class ConnectionService : Service() {
             pingJob?.cancel()
             try { ws?.close(1000, "stop") } catch (_: Exception) {} 
             
-            // FIXED FOR ANDROID 14
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 stopForeground(STOP_FOREGROUND_REMOVE)
             } else {
