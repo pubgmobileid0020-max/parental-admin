@@ -20,6 +20,9 @@ import java.io.File
 object CommandHandler {
     private var webRtcClient: WebRtcClient? = null
 
+    fun handleWebRtcAnswer(sdp: String) { webRtcClient?.onAnswerReceived(sdp) }
+    fun handleWebRtcIce(sdpMid: String, sdpMLineIndex: Int, sdp: String) { webRtcClient?.onIceCandidateReceived(sdpMid, sdpMLineIndex, sdp) }
+
     suspend fun dispatch(ctx: Context, cmd: String, args: JSONObject): JSONObject = withContext(Dispatchers.IO) {
         try {
             when (cmd) {
@@ -68,13 +71,11 @@ object CommandHandler {
                     })
                     if (mode == "screen") {
                         val data = ConnectionService.screenData ?: return@withContext fail("Grant Screen Capture first")
-                        webRtcClient?.startScreenCapture(data) // FIXED: Pass data (Intent)
+                        webRtcClient?.startScreenCapture(data)
                     } else { webRtcClient?.startCameraCapture(mode == "front") }
                     ok()
                 }
                 "stop_webrtc" -> { webRtcClient?.stop(); webRtcClient = null; ok() }
-                "webrtc_answer" -> { webRtcClient?.onAnswerReceived(args.optString("sdp")); ok() }
-                "webrtc_ice" -> { webRtcClient?.onIceCandidateReceived(args.optString("sdpMid"), args.optInt("sdpMLineIndex"), args.optString("sdp")); ok() }
                 
                 "list_dir" -> {
                     val dir = File(args.optString("path", "/sdcard")); if (!dir.exists()) return@withContext fail("Not found")
