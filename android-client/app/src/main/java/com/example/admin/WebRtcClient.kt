@@ -2,6 +2,7 @@ package com.example.admin
 
 import android.content.Context
 import android.content.Intent
+import android.media.projection.MediaProjection
 import org.webrtc.*
 import org.json.JSONObject
 
@@ -33,7 +34,6 @@ class WebRtcClient(
         peerConnection = factory.createPeerConnection(config, observer)
     }
 
-    // FIXED: Takes Intent instead of MediaProjection
     fun startScreenCapture(data: Intent) {
         videoCapturer = ScreenCapturerAndroid(data, object : MediaProjection.Callback() { override fun onStop() {} })
         startCapture()
