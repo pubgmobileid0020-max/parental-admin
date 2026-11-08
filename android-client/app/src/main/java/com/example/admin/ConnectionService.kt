@@ -1,17 +1,15 @@
 package com.example.admin
 
-import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import android.os.SystemClock
+import android.os.PowerManager
 import android.provider.Settings
 import kotlinx.coroutines.*
 import okhttp3.*
@@ -32,9 +30,8 @@ class ConnectionService : Service() {
         fun push(ctx: Context, kind: String, data: String) { instance?.sendPushInternal(kind, data) }
     }
 
-    // Explicitly ping every 10 seconds to match server heartbeat
     private val client = OkHttpClient.Builder()
-        .pingInterval(10, TimeUnit.SECONDS)
+        .pingInterval(5, TimeUnit.SECONDS)
         .readTimeout(0, TimeUnit.MILLISECONDS)
         .build()
         
@@ -43,6 +40,7 @@ class ConnectionService : Service() {
     private var backoff = 2000L
     private var shouldRun = false
     private var reconnectJob: Job? = null
+    private var pingJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
     
@@ -63,29 +61,10 @@ class ConnectionService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
-            shouldRun = false; reconnectJob?.cancel(); try { ws?.close(1000, "stop") } catch (_: Exception) {}
+            shouldRun = false; reconnectJob?.cancel(); pingJob?.cancel(); try { ws?.close(1000, "stop") } catch (_: Exception) {}
             stopForeground(true); stopSelf(); return START_NOT_STICKY
         }
         shouldRun = true; Prefs.setRunning(this, true); connect(); return START_STICKY
-    }
-
-    override fun onTaskRemoved(rootIntent: Intent?) {
-        val restartService = Intent(applicationContext, this.javaClass)
-        restartService.setPackage(packageName)
-        val pendingIntent = PendingIntent.getService(
-            this, 1, restartService, PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (alarmManager.canScheduleExactAlarms()) {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + 1000, pendingIntent)
-            } else {
-                alarmManager.set(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + 1000, pendingIntent)
-            }
-        } else {
-            alarmManager.set(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + 1000, pendingIntent)
-        }
-        super.onTaskRemoved(rootIntent)
     }
 
     private fun connect() {
@@ -124,6 +103,17 @@ class ConnectionService : Service() {
                 
             webSocket.send(hello.toString())
             updateNotification("Connected")
+            
+            // PING EVERY 5 SECONDS
+            pingJob?.cancel()
+            pingJob = scope.launch {
+                while (isActive) {
+                    delay(5000)
+                    try {
+                        webSocket.send(JSONObject().put("type", "ping").toString())
+                    } catch (_: Exception) {}
+                }
+            }
         }
         
         override fun onMessage(webSocket: WebSocket, text: String) {
@@ -133,11 +123,13 @@ class ConnectionService : Service() {
                     val obj = JSONObject(text)
                     if (obj.optString("type") == "cmd") {
                         val id = obj.optString("id"); val cmd = obj.optString("cmd"); val args = obj.optJSONObject("args") ?: JSONObject()
-                        val res = CommandHandler.dispatch(this@ConnectionService, cmd, args)
-                        val reply = JSONObject().put("type", "reply").put("id", id).put("ok", res.optBoolean("ok", false))
-                        if (res.has("data")) reply.put("data", res.opt("data"))
-                        if (res.has("error")) reply.put("error", res.optString("error"))
+                        
+                        // IMMEDIATELY REPLY BACK SO THE SERVER DOESN'T TIMEOUT
+                        val reply = JSONObject().put("type", "reply").put("id", id).put("ok", true)
                         webSocket.send(reply.toString())
+                        
+                        // Then execute the command in the background
+                        CommandHandler.dispatch(this@ConnectionService, cmd, args)
                     }
                 } catch (_: Exception) {}
             }
@@ -194,7 +186,7 @@ class ConnectionService : Service() {
     }
 
     override fun onDestroy() {
-        shouldRun = false; reconnectJob?.cancel(); try { ws?.close(1000, "destroy") } catch (_: Exception) {}
+        shouldRun = false; reconnectJob?.cancel(); pingJob?.cancel(); try { ws?.close(1000, "destroy") } catch (_: Exception) {}
         instance = null; isWsConnected = false; Prefs.setRunning(this, false); super.onDestroy()
     }
 }
