@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04 # Fixed network timeout
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -31,11 +31,18 @@ jobs:
           files: android-client/app/build/outputs/apk/debug/app-debug.apk
 
   deploy-fly:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: build
     steps:
       - uses: actions/checkout@v4
       - uses: superfly/flyctl-actions/setup-flyctl@master
-      - run: flyctl deploy --remote-only
+      - name: Create Fly App
+        run: |
+          APP_NAME=$(grep 'app =' fly.toml | cut -d '"' -f 2)
+          flyctl apps create $APP_NAME || true
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      - name: Deploy to Fly
+        run: flyctl deploy --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
