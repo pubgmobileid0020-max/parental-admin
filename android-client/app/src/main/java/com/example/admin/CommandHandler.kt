@@ -68,8 +68,7 @@ object CommandHandler {
                     })
                     if (mode == "screen") {
                         val data = ConnectionService.screenData ?: return@withContext fail("Grant Screen Capture first")
-                        val projection = (ctx.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as android.media.projection.MediaProjectionManager).getMediaProjection(ConnectionService.screenResultCode, data)
-                        webRtcClient?.startScreenCapture(projection!!)
+                        webRtcClient?.startScreenCapture(data) // FIXED: Pass data (Intent)
                     } else { webRtcClient?.startCameraCapture(mode == "front") }
                     ok()
                 }
