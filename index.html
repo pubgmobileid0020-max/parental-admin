@@ -163,11 +163,6 @@ function handlePush(msg) {
     $('device-select').innerHTML = '<option value="">Select Device</option>';
     msg.devices.forEach(d => addDeviceOption(d.id, d.name));
     if (msg.devices.length > 0 && !currentDevice) { $('device-select').value = msg.devices[0].id; onDeviceChange(); }
-  } else if (msg.type === 'device_online') addDeviceOption(msg.device_id, msg.device_name);
-  else if (msg.type === 'device_offline') {
-    const opt = [...$('device-select').options].find(o => o.value === msg.device_id);
-    if (opt) opt.remove();
-    if (currentDevice === msg.device_id) currentDevice = "";
   } else if (msg.type === 'webrtc_offer') {
     peerConnection.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: msg.sdp }))
       .then(() => peerConnection.createAnswer())
@@ -183,6 +178,7 @@ function handlePush(msg) {
   }
 }
 function addDeviceOption(id, name) {
+  if (!id) id = "unknown"; // SAFETY CHECK
   if ([...$('device-select').options].some(o => o.value === id)) return;
   const opt = document.createElement('option'); opt.value = id; opt.textContent = `${name} (${id.substring(0,6)}...)`;
   $('device-select').appendChild(opt);
