@@ -26,16 +26,14 @@ async def index(request): return web.FileResponse(os.path.join(HERE, "index.html
 async def wake(request): return web.json_response({"status": "awake"})
 
 async def api_cmd(request: web.Request):
-    if not PSK or _token(request) != PSK:
-        return web.json_response({"ok": False, "error": "auth failed"}, status=401)
+    if not PSK or _token(request) != PSK: return web.json_response({"ok": False, "error": "auth failed"}, status=401)
     try: payload = await request.json()
     except Exception: return web.json_response({"ok": False, "error": "bad json"}, status=400)
         
     target, cmd, args = payload.get("device_id"), payload.get("cmd"), payload.get("args") or {}
     dev_data = state["devices"].get(target)
     
-    if not dev_data or dev_data["ws"].closed:
-        return web.json_response({"ok": False, "error": "Device offline"}, status=503)
+    if not dev_data or dev_data["ws"].closed: return web.json_response({"ok": False, "error": "Device offline"}, status=503)
 
     req_id = uuid.uuid4().hex
     fut = asyncio.get_running_loop().create_future()
@@ -66,13 +64,14 @@ async def ws_handler(request):
             if not d.closed: await d.send_json({"type": "device_online", "device_id": dev_id, "device_name": dev_name})
         try:
             async for msg in ws:
-                data = json.loads(msg.data)
-                if data.get("type") == "reply":
-                    fut = state["pending"].get(data.get("id"))
-                    if fut and not fut.done(): fut.set_result(data)
-                elif data.get("type") == "push":
-                    for d in state["dashboards"]:
-                        if not d.closed: await d.send_json(data)
+                if msg.type == WSMsgType.TEXT:
+                    data = json.loads(msg.data)
+                    if data.get("type") in ["webrtc_offer", "webrtc_ice", "push"]:
+                        for d in state["dashboards"]:
+                            if not d.closed: await d.send_json(data)
+                    elif data.get("type") == "reply":
+                        fut = state["pending"].get(data.get("id"))
+                        if fut and not fut.done(): fut.set_result(data)
         finally:
             state["devices"].pop(dev_id, None)
             for d in state["dashboards"]:
@@ -82,7 +81,14 @@ async def ws_handler(request):
         await ws.send_json({"type": "device_list", "devices": [{"id": k, "name": v["name"]} for k, v in state["devices"].items()]})
         try:
             async for msg in ws:
-                if json.loads(msg.data).get("type") == "ping": await ws.send_json({"type": "pong"})
+                if msg.type == WSMsgType.TEXT:
+                    data = json.loads(msg.data)
+                    if data.get("type") in ["webrtc_answer", "webrtc_ice"]:
+                        target = data.get("device_id")
+                        if target and target in state["devices"]:
+                            dev = state["devices"][target]["ws"]
+                            if not dev.closed: await dev.send_json(data)
+                    elif data.get("type") == "ping": await ws.send_json({"type": "pong"})
         finally: state["dashboards"].discard(ws)
     return ws
 
