@@ -228,13 +228,13 @@ function openWs(server, psk) {
       $('connectBtn').textContent = 'Connected';
       ws.send(JSON.stringify({ role: 'dashboard', psk })); 
       
-      // HEARTBEAT: Ping every 30s to prevent Render timeout
+      // HEARTBEAT: Ping every 10s to prevent Render timeout
       if (pingInterval) clearInterval(pingInterval);
       pingInterval = setInterval(() => {
           if (ws && ws.readyState === WebSocket.OPEN) {
               ws.send(JSON.stringify({ type: 'ping' }));
           }
-      }, 30000);
+      }, 10000);
     };
     ws.onmessage = ev => { try { handlePush(JSON.parse(ev.data)); } catch (_) {} };
     ws.onclose = () => {
@@ -399,7 +399,6 @@ async function runCmd(cmd, args = {}) {
   } catch (e) { alert(e.message); }
 }
 
-// Toggle Hide/Unhide
 async function toggleHide() {
     try {
         const cmd = isHidden ? 'unhide_icon' : 'hide_icon';
