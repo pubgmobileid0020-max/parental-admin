@@ -3,6 +3,7 @@ package com.example.admin
 import android.content.Context
 import android.content.Intent
 import android.media.projection.MediaProjection
+import android.provider.Settings
 import org.webrtc.*
 import org.json.JSONObject
 
@@ -57,10 +58,18 @@ class WebRtcClient(
     }
 
     private fun createOffer() {
+        val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "unknown"
         peerConnection?.createOffer(object : SdpObserver {
             override fun onCreateSuccess(sdp: SessionDescription) {
-                peerConnection?.setLocalDescription(SimpleSdpObserver(), sdp)
-                ConnectionService.push(JSONObject().put("type", "webrtc_offer").put("sdp", sdp.description).toString())
+                peerConnection?.setLocalDescription(object : SdpObserver {
+                    override fun onSetSuccess() {
+                        // ONLY SEND THE OFFER AFTER LOCAL DESCRIPTION IS SET
+                        ConnectionService.push(JSONObject().put("type", "webrtc_offer").put("device_id", deviceId).put("sdp", sdp.description).toString())
+                    }
+                    override fun onCreateSuccess(p0: SessionDescription?) {}
+                    override fun onCreateFailure(p0: String?) {}
+                    override fun onSetFailure(p0: String?) {}
+                }, sdp)
             }
             override fun onCreateFailure(p0: String?) {}
             override fun onSetSuccess() {}
