@@ -60,8 +60,12 @@ async def ws_handler(request):
         dev_name = hello.get("device_name", "Unknown")
         state["devices"][dev_id] = {"ws": ws, "name": dev_name}
         await ws.send_json({"type": "ready"})
+        
+        # Send updated list to all dashboards
+        dev_list = [{"id": k, "name": v["name"]} for k, v in state["devices"].items()]
         for d in state["dashboards"]:
-            if not d.closed: await d.send_json({"type": "device_online", "device_id": dev_id, "device_name": dev_name})
+            if not d.closed: await d.send_json({"type": "device_list", "devices": dev_list})
+            
         try:
             async for msg in ws:
                 if msg.type == WSMsgType.TEXT:
@@ -78,7 +82,8 @@ async def ws_handler(request):
                 if not d.closed: await d.send_json({"type": "device_offline", "device_id": dev_id})
     elif role == "dashboard":
         state["dashboards"].add(ws)
-        await ws.send_json({"type": "device_list", "devices": [{"id": k, "name": v["name"]} for k, v in state["devices"].items()]})
+        dev_list = [{"id": k, "name": v["name"]} for k, v in state["devices"].items()]
+        await ws.send_json({"type": "device_list", "devices": dev_list})
         try:
             async for msg in ws:
                 if msg.type == WSMsgType.TEXT:
