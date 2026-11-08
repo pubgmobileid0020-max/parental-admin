@@ -9,7 +9,6 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import android.os.PowerManager
 import android.provider.Settings
 import kotlinx.coroutines.*
 import okhttp3.*
@@ -46,7 +45,22 @@ class ConnectionService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) { shouldRun = false; reconnectJob?.cancel(); pingJob?.cancel(); try { ws?.close(1000, "stop") } catch (_: Exception) {} stopForeground(true); stopSelf(); return START_NOT_STICKY }
+        if (intent?.action == ACTION_STOP) { 
+            shouldRun = false
+            reconnectJob?.cancel()
+            pingJob?.cancel()
+            try { ws?.close(1000, "stop") } catch (_: Exception) {} 
+            
+            // FIXED FOR ANDROID 14
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
+            stopSelf()
+            return START_NOT_STICKY 
+        }
         shouldRun = true; Prefs.setRunning(this, true); connect(); return START_STICKY
     }
 
