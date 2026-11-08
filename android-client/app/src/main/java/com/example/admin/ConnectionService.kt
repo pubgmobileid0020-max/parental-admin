@@ -32,10 +32,15 @@ class ConnectionService : Service() {
         fun push(ctx: Context, kind: String, data: String) { instance?.sendPushInternal(kind, data) }
     }
 
-    private val client = OkHttpClient.Builder().pingInterval(20, TimeUnit.SECONDS).build()
+    // Explicitly ping every 10 seconds to match server heartbeat
+    private val client = OkHttpClient.Builder()
+        .pingInterval(10, TimeUnit.SECONDS)
+        .readTimeout(0, TimeUnit.MILLISECONDS)
+        .build()
+        
     private var ws: WebSocket? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private var backoff = 1000L
+    private var backoff = 2000L
     private var shouldRun = false
     private var reconnectJob: Job? = null
 
@@ -45,10 +50,7 @@ class ConnectionService : Service() {
         super.onCreate()
         instance = this
         val nm = getSystemService(NotificationManager::class.java)
-        
-        // IMPORTANCE_MIN makes it silent and hidden
         val channel = NotificationChannel("conn", "Service", NotificationManager.IMPORTANCE_MIN)
-        channel.setShowBadge(false)
         nm.createNotificationChannel(channel)
         
         val notif = buildNotification("Running...")
@@ -67,7 +69,6 @@ class ConnectionService : Service() {
         shouldRun = true; Prefs.setRunning(this, true); connect(); return START_STICKY
     }
 
-    // FORCES RESTART IF SWIPED AWAY
     override fun onTaskRemoved(rootIntent: Intent?) {
         val restartService = Intent(applicationContext, this.javaClass)
         restartService.setPackage(packageName)
@@ -108,7 +109,6 @@ class ConnectionService : Service() {
 
     private val listener = object : WebSocketListener() {
         override fun onOpen(webSocket: WebSocket, response: Response) {
-            backoff = 1000L
             isWsConnected = true
             broadcastStatus(true)
             
@@ -125,7 +125,9 @@ class ConnectionService : Service() {
             webSocket.send(hello.toString())
             updateNotification("Connected")
         }
+        
         override fun onMessage(webSocket: WebSocket, text: String) {
+            backoff = 2000L 
             scope.launch {
                 try {
                     val obj = JSONObject(text)
@@ -140,12 +142,14 @@ class ConnectionService : Service() {
                 } catch (_: Exception) {}
             }
         }
+        
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) { 
             isWsConnected = false
             broadcastStatus(false)
             updateNotification("Reconnecting...")
             scheduleReconnect() 
         }
+        
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) { 
             isWsConnected = false
             broadcastStatus(false)
@@ -164,8 +168,12 @@ class ConnectionService : Service() {
     private fun scheduleReconnect() {
         if (!shouldRun) return
         reconnectJob?.cancel()
-        val d = backoff; backoff = (backoff * 2).coerceAtMost(60_000L)
-        reconnectJob = scope.launch { delay(d); connect() }
+        val d = backoff
+        backoff = (backoff * 2).coerceAtMost(60_000L)
+        reconnectJob = scope.launch { 
+            delay(d)
+            connect() 
+        }
     }
 
     fun sendPushInternal(kind: String, data: String) {
