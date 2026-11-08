@@ -19,11 +19,11 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # BYPASS BROKEN SETUP-GRADLE ACTION
+      # BYPASS BROKEN SETUP-GRADLE ACTION (Uses curl with retries)
       - name: Setup Gradle manually
         run: |
-          wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip
-          unzip -q gradle-8.7-bin.zip
+          curl -sL --retry 5 --retry-delay 3 -o gradle.zip https://services.gradle.org/distributions/gradle-8.7-bin.zip
+          unzip -q gradle.zip
           echo "$PWD/gradle-8.7/bin" >> $GITHUB_PATH
 
       - name: Build APK
