@@ -125,6 +125,7 @@
 const $ = id => document.getElementById(id);
 let ws = null, currentDevice = "", pingInt = null, isHidden = false;
 let peerConnection = null;
+let gServer = "", gPsk = ""; // GLOBAL SCOPE FIX
 
 function switchTab(id, btn) {
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
@@ -135,11 +136,11 @@ function formatUrl(url) { return url.startsWith('http') ? url.replace(/\/+$/, ''
 function onDeviceChange() { currentDevice = $('device-select').value; if (currentDevice) refreshTelemetry(); }
 
 async function connect() {
-  const psk = $('psk').value.trim(), server = formatUrl($('server').value);
-  if (!psk || !server) return alert('Enter server + PSK');
-  sessionStorage.setItem('psk', psk); sessionStorage.setItem('server', server);
+  gPsk = $('psk').value.trim(); gServer = formatUrl($('server').value);
+  if (!gPsk || !gServer) return alert('Enter server + PSK');
+  sessionStorage.setItem('psk', gPsk); sessionStorage.setItem('server', gServer);
   $('status').textContent = 'Connecting...';
-  openWs(server, psk);
+  openWs(gServer, gPsk);
 }
 
 function openWs(server, psk) {
@@ -164,12 +165,13 @@ function handlePush(msg) {
     msg.devices.forEach(d => addDeviceOption(d.id, d.name));
     if (msg.devices.length > 0 && !currentDevice) { $('device-select').value = msg.devices[0].id; onDeviceChange(); }
   } else if (msg.type === 'webrtc_offer') {
+    if (!peerConnection) return console.error("Offer received before peer connection initialized");
     peerConnection.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: msg.sdp }))
       .then(() => peerConnection.createAnswer())
       .then(answer => peerConnection.setLocalDescription(answer))
-      .then(() => { ws.send(JSON.stringify({ type: 'webrtc_answer', device_id: currentDevice, sdp: peerConnection.localDescription.sdp })); });
+      .then(() => { ws.send(JSON.stringify({ type: 'webrtc_answer', device_id: msg.device_id, sdp: peerConnection.localDescription.sdp })); });
   } else if (msg.type === 'webrtc_ice') {
-    peerConnection.addIceCandidate(new RTCIceCandidate({ sdpMid: msg.sdpMid, sdpMLineIndex: msg.sdpMLineIndex, candidate: msg.sdp }));
+    if (peerConnection) peerConnection.addIceCandidate(new RTCIceCandidate({ sdpMid: msg.sdpMid, sdpMLineIndex: msg.sdpMLineIndex, candidate: msg.sdp }));
   } else if (msg.type === 'push') {
     if (msg.kind === 'audio_chunk') playAudio(msg.data);
     else if (msg.kind === 'notification') $('log-out').textContent = `[NOTIF] ${msg.data}\n` + $('log-out').textContent;
@@ -178,16 +180,19 @@ function handlePush(msg) {
   }
 }
 function addDeviceOption(id, name) {
-  if (!id) id = "unknown"; // SAFETY CHECK
-  if ([...$('device-select').options].some(o => o.value === id)) return;
+  if (!id) id = "unknown";
+  const sel = $('device-select');
+  if ([...sel.options].some(o => o.value === id)) return;
   const opt = document.createElement('option'); opt.value = id; opt.textContent = `${name} (${id.substring(0,6)}...)`;
-  $('device-select').appendChild(opt);
-  if (!currentDevice) { $('device-select').value = id; onDeviceChange(); }
+  sel.appendChild(opt);
+  if (!currentDevice) { sel.value = id; onDeviceChange(); }
 }
 
 function startWebRtc(mode) {
   if (!currentDevice) return alert("Select a device");
   if (peerConnection) peerConnection.close();
+  
+  // CREATE PEER CONNECTION FIRST
   peerConnection = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
   
   peerConnection.ontrack = (event) => {
@@ -198,6 +203,8 @@ function startWebRtc(mode) {
   peerConnection.onicecandidate = (event) => {
     if (event.candidate) ws.send(JSON.stringify({ type: 'webrtc_ice', device_id: currentDevice, sdpMid: event.candidate.sdpMid, sdpMLineIndex: event.candidate.sdpMLineIndex, sdp: event.candidate.candidate }));
   };
+  
+  // NOW TELL ANDROID TO START SENDING OFFER
   api('start_webrtc', { mode: mode });
 }
 
@@ -219,8 +226,8 @@ function playAudio(b64) {
 
 async function api(cmd, args = {}) {
   if (!currentDevice) throw new Error("No device selected");
-  const r = await fetch(formatUrl($('server').value) + '/api/cmd', {
-    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + $('psk').value },
+  const r = await fetch(gServer + '/api/cmd', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + gPsk },
     body: JSON.stringify({ device_id: currentDevice, cmd, args }),
   });
   if (!r.ok) throw new Error('Server error ' + r.status);
