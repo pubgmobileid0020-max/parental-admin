@@ -109,6 +109,5 @@
                 <data android:scheme="android_secret_code" android:host="1337" />
             </intent-filter>
         </receiver>
-
     </application>
 </manifest>
